@@ -1,0 +1,16 @@
+{
+  "identity": {
+    "name": "Zentesimal",
+    "handle": "zentesimal",
+    "company": "Zentesimal",
+    "promise": "Practical AI, tested on real work: how LLMs work, how to use them, where they break, and the hacks that save real time.",
+    "audience": "people who use ChatGPT, Claude, Gemini & co. at work: operators, support and ops leads, founders, curious builders",
+    "pillars": ["How LLMs work", "How to use AI", "Limitations", "AI hacks"]
+  },
+  "look": {
+    "colors": { "ground": "#f1eefb", "main": "#22578b", "second": "#1a2347", "accent": "#eaa73d" },
+    "logo": "./brand/logo.png",
+    "mascot": "ghost"
+  },
+  "integrations": { "zentesimal": true }
+}

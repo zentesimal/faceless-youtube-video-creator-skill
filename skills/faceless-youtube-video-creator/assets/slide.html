@@ -1,0 +1,1804 @@
+<!doctype html>
+<!--
+  Video slide, 1920×1080. render-video.mjs fills the placeholders (fonts, logo) and calls
+  window.show(slide, chrome) once per slide, then screenshots the page.
+  slide:  one `> SLIDE {…}` cue from script.md (layouts: statement, points, number, table, doc, fields,
+          chat, image, point, word, quote, chapter, subscribe, end), plus `_src` (an image as a data URL) and
+          `_frame` (subscribe: 0 resting, 1 cursor on the pill, 2 subscribed).
+  chrome: { label, progress (0..1), name (wordmark), mascot (scene default cast), brand (false = no logo, wordmark or progress bar), theme ({ground, main,
+          second, accent, texture: dots|grain|none}), fonts ({display, body} CSS stacks), channel ({name,
+          handle, avatar}) }. Label/brand/progress are drawn on every slide except chapter/end.
+  window.check() returns overflow problems; the renderer exits 2 on them.
+  window.anim(slide, {speed, fps}) (optional, after show) builds paused entrance animations for the slide on
+  screen, plus an idle loop for scenes, and returns {intro, loop} in seconds; window.seek(t) poses every
+  animation at t so the renderer can screenshot frame by frame. The last intro frame equals the still slide.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      /*FONTS*/
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+      #stage {
+        --ground: #f1eefb;
+        --main: #22578b;
+        --second: #1a2347;
+        --accent: #eaa73d;
+        --display: 'Fraunces', Georgia, serif;
+        --body: 'Inter', system-ui, sans-serif;
+        --bad: #d9363e;
+        --good: #23875a;
+        --paper: color-mix(in srgb, var(--ground) 90%, var(--main));
+        --card: #fff;
+        --hair: color-mix(in srgb, var(--ground) 62%, var(--main));
+        --dot: color-mix(in srgb, var(--main) 13%, transparent);
+        --muted: color-mix(in srgb, var(--second) 62%, var(--ground));
+        --ink: var(--second);
+        --hl: color-mix(in srgb, var(--accent) 70%, transparent);
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        color: var(--ink);
+        background: var(--paper);
+        background-image: radial-gradient(var(--dot) 2.4px, transparent 2.8px);
+        background-size: 52px 52px;
+        font-family: var(--body);
+      }
+      #stage.notex {
+        background-image: none;
+      }
+      /* story texture: film grain + vignette, drawn over everything */
+      #stage.grain {
+        background-image: none;
+      }
+      #stage.grain::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(
+            ellipse at center,
+            transparent 55%,
+            color-mix(in srgb, var(--second) 22%, transparent) 100%
+          ),
+          url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        mix-blend-mode: overlay;
+        opacity: 0.55;
+        z-index: 5;
+      }
+      #stage.nobrand .label {
+        font-size: 22px;
+        color: var(--muted);
+      }
+      #stage.nobrand .label::before {
+        width: 28px;
+        height: 3px;
+      }
+      #stage.dark {
+        --paper: var(--second);
+        --card: color-mix(in srgb, var(--second) 84%, var(--ground));
+        --hair: color-mix(in srgb, var(--second) 58%, var(--ground));
+        --dot: color-mix(in srgb, var(--ground) 7%, transparent);
+        --muted: color-mix(in srgb, var(--ground) 66%, var(--second));
+        --ink: var(--ground);
+        background-color: var(--second);
+      }
+      /* paint texture: an MS Paint-style hand-drawn look. White canvas, hand lettering everywhere (except
+         YouTube's own UI), wobbly ink borders drawn by a ::before with the #wobble filter (so text stays
+         crisp), a yellow marker highlight, and doodles. Theme key `marker` sets the highlighter colour. */
+      #stage.paint {
+        --paper: var(--ground);
+        --card: var(--ground);
+        --hair: var(--second);
+        --muted: color-mix(in srgb, var(--second) 72%, var(--ground));
+        --hl: var(--marker, #fff200);
+        background-image: none;
+      }
+      #stage.paint *:not(.yt, .yt *) {
+        font-family: var(--body) !important;
+        letter-spacing: 0 !important;
+      }
+      #stage.paint .h,
+      #stage.paint .h *,
+      #stage.paint .bignum,
+      #stage.paint .bignum *,
+      #stage.paint .num {
+        font-family: var(--display) !important;
+        font-weight: 400 !important;
+      }
+      #stage.paint .label,
+      #stage.paint .eyebrow,
+      #stage.paint th,
+      #stage.paint .field .k {
+        text-transform: none;
+        font-size: 1.15em;
+      }
+      #stage.paint .card {
+        position: relative;
+        border-color: transparent !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        background: transparent;
+      }
+      #stage.paint .card::before {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        border: 7px solid var(--second);
+        border-radius: 22px 34px 18px 40px / 30px 18px 36px 20px;
+        background: var(--card-fill, transparent);
+        filter: url(#wobble-soft);
+        z-index: -1;
+        pointer-events: none;
+      }
+      #stage.paint .card {
+        z-index: 0;
+      }
+      #stage.paint .hl {
+        background-image: linear-gradient(var(--hl), var(--hl));
+        background-position: 0 0;
+        background-size: 100% 100%;
+        border-radius: 6px 14px 8px 16px;
+        padding: 0 0.12em;
+      }
+      #stage.paint .num {
+        border-radius: 46% 54% 50% 50% / 50% 46% 54% 50%;
+        background: var(--main);
+      }
+      #stage.paint.dark {
+        --card: var(--second);
+        --hair: var(--ground);
+      }
+      #stage.paint.dark .card::before {
+        border-color: var(--ground);
+      }
+      /* the marker is a solid light fill: on dark slides (and dark scenes) keep the highlighted words in
+         dark ink, or they turn white on yellow */
+      #stage.paint.dark .hl,
+      #stage.paint.dark .hl * {
+        color: var(--second);
+      }
+      /* doodle: one hand-drawn picture (from the library in this file) with an optional line beside it */
+      .doodle-row {
+        display: flex;
+        align-items: center;
+        gap: 70px;
+        min-height: 0;
+      }
+      .doodle-row svg.doodle {
+        flex: none;
+        width: 760px;
+        height: 570px;
+        filter: url(#wobble);
+        overflow: visible;
+      }
+      .doodle-row.solo {
+        justify-content: center;
+      }
+      .doodle-row.solo svg.doodle {
+        width: 1000px;
+        height: 700px;
+      }
+      .doodle-row .side {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+      .doodle-cap {
+        font-size: 40px;
+        color: var(--muted);
+        text-align: center;
+      }
+      /* chrome */
+      .label {
+        position: absolute;
+        left: 120px;
+        top: 64px;
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--main);
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      #stage.dark .label {
+        color: var(--accent);
+      }
+      .label::before {
+        content: '';
+        width: 44px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--accent);
+      }
+      .brand {
+        position: absolute;
+        right: 120px;
+        top: 52px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 30px;
+      }
+      .brand img {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+      }
+      .progress {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 8px;
+        background: var(--accent);
+      }
+      /* content box: everything lays out inside it */
+      .box {
+        position: absolute;
+        left: 120px;
+        right: 120px;
+        top: 150px;
+        bottom: 96px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 40px;
+      }
+      .h {
+        margin: 0;
+        font-family: var(--display);
+        font-weight: 700;
+        line-height: 1.08;
+        letter-spacing: -0.015em;
+        white-space: pre-line;
+      }
+      .hl {
+        background-image: linear-gradient(var(--hl), var(--hl));
+        background-repeat: no-repeat;
+        background-position: 0 88%;
+        background-size: 100% 40%;
+        padding: 0 0.06em;
+        margin: 0 -0.06em;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+      }
+      .sub {
+        font-size: 44px;
+        line-height: 1.3;
+        color: var(--muted);
+        white-space: pre-line;
+      }
+      .card {
+        background: var(--card);
+        border: 3px solid var(--hair);
+        border-radius: 28px;
+        box-shadow: 0 24px 50px -30px color-mix(in srgb, var(--second) 45%, transparent);
+      }
+      b {
+        font-weight: 650;
+        color: var(--main);
+      }
+      #stage.dark b {
+        color: var(--accent);
+      }
+      /* points */
+      .points {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .point {
+        display: flex;
+        gap: 30px;
+        align-items: center;
+        padding: 26px 36px;
+        font-size: 46px;
+        line-height: 1.25;
+      }
+      .num {
+        flex: none;
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        background: var(--main);
+        color: #fff;
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-weight: 700;
+        font-size: 36px;
+      }
+      .points.many {
+        gap: 16px;
+      }
+      .points.many .point {
+        padding: 16px 32px;
+        font-size: 40px;
+      }
+      .points.many .num {
+        width: 60px;
+        height: 60px;
+        font-size: 30px;
+      }
+      .point.done .num {
+        background: var(--good);
+      }
+      .point.dim {
+        opacity: 0.42;
+      }
+      /* number */
+      .bignum {
+        display: flex;
+        align-items: baseline;
+        gap: 40px;
+        flex-wrap: wrap;
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .bignum .from {
+        font-size: 150px;
+        color: var(--muted);
+        position: relative;
+      }
+      .bignum .from::after {
+        content: '';
+        position: absolute;
+        left: -8px;
+        right: -8px;
+        top: 52%;
+        height: 10px;
+        border-radius: 5px;
+        background: color-mix(in srgb, var(--bad) 75%, transparent);
+      }
+      .bignum .arrow {
+        font-size: 130px;
+        color: var(--accent);
+      }
+      .bignum .to {
+        font-size: 260px;
+        line-height: 0.9;
+        color: var(--main);
+      }
+      #stage.dark .bignum .to {
+        color: var(--accent);
+      }
+      /* table */
+      .tablecard {
+        padding: 10px 0;
+        overflow: hidden;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--tsize, 32px);
+      }
+      th {
+        text-align: left;
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 0.72em;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 18px 30px;
+        border-bottom: 3px solid var(--hair);
+      }
+      td {
+        padding: 18px 30px;
+        border-bottom: 2px solid color-mix(in srgb, var(--hair) 60%, transparent);
+        line-height: 1.25;
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      tr.mark td {
+        background: color-mix(in srgb, var(--accent) 22%, transparent);
+      }
+      tr.cut td {
+        color: var(--muted);
+        text-decoration: line-through;
+        text-decoration-color: color-mix(in srgb, var(--bad) 70%, transparent);
+        text-decoration-thickness: 3px;
+      }
+      .pill {
+        display: inline-block;
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 0.78em;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--main) 14%, transparent);
+        color: var(--main);
+        white-space: nowrap;
+        text-decoration: none;
+      }
+      .note {
+        font-size: 30px;
+        color: var(--muted);
+      }
+      /* doc */
+      .doc {
+        overflow: hidden;
+      }
+      .doc .bar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 20px 30px;
+        border-bottom: 3px solid var(--hair);
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 26px;
+        color: var(--muted);
+      }
+      .doc .bar i {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--hair);
+        display: inline-block;
+      }
+      .doc pre {
+        margin: 0;
+        padding: 26px 34px 30px;
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: var(--dsize, 34px);
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+      .doc pre .on {
+        background: color-mix(in srgb, var(--accent) 30%, transparent);
+        border-radius: 6px;
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+      }
+      .doc pre .off {
+        opacity: 0.5;
+      }
+      .doc pre .ln {
+        display: block;
+      }
+      /* fields */
+      .fields {
+        padding: 12px 0;
+      }
+      .field {
+        display: grid;
+        grid-template-columns: 330px 1fr auto;
+        gap: 30px;
+        align-items: baseline;
+        padding: 20px 36px;
+        border-bottom: 2px solid color-mix(in srgb, var(--hair) 60%, transparent);
+        font-size: 34px;
+        line-height: 1.3;
+      }
+      .field:last-child {
+        border-bottom: 0;
+      }
+      .field .k {
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 26px;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+      }
+      .field .n {
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 26px;
+        font-weight: 600;
+        color: var(--good);
+        white-space: nowrap;
+      }
+      .field .n.bad {
+        color: var(--bad);
+      }
+      /* chat */
+      .chat {
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+      .bubble {
+        max-width: 82%;
+        font-size: 42px;
+        line-height: 1.3;
+        padding: 26px 34px;
+        border-radius: 30px;
+        white-space: pre-line;
+      }
+      .bubble.user {
+        align-self: flex-end;
+        background: var(--main);
+        color: #fff;
+        border-bottom-right-radius: 8px;
+      }
+      .bubble.ai {
+        align-self: flex-start;
+        background: color-mix(in srgb, var(--main) 8%, var(--card));
+        border: 3px solid var(--hair);
+        border-bottom-left-radius: 8px;
+      }
+      /* image */
+      .imgwrap {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .imgwrap img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 18px;
+        border: 3px solid var(--hair);
+        box-shadow: 0 30px 60px -30px color-mix(in srgb, var(--second) 55%, transparent);
+        background: #fff;
+      }
+      .caption {
+        font-size: 32px;
+        color: var(--muted);
+        text-align: center;
+      }
+      /* chapter / subscribe / end */
+      .center {
+        align-items: flex-start;
+      }
+      .eyebrow {
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 34px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      /* point: one point of a list, full screen (points with reveal:"one") */
+      .pointbig {
+        display: flex;
+        align-items: center;
+        gap: 56px;
+      }
+      .pointbig .num {
+        width: 168px;
+        height: 168px;
+        border-radius: 40px;
+        font-size: 92px;
+      }
+      .pointbig .h {
+        flex: 1;
+        min-width: 0;
+      }
+      .of {
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 30px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      /* word: 1–3 huge words */
+      .box.word {
+        align-items: center;
+        text-align: center;
+      }
+      /* full width, so the fit check measures the box, not the text's own width
+         (a highlight ending the line overhangs its inline box by its padding) */
+      .box.word .h {
+        width: 100%;
+      }
+      /* quote */
+      .qmark {
+        font-family: var(--display);
+        font-size: 260px;
+        line-height: 0.6;
+        height: 120px;
+        color: var(--accent);
+      }
+      .by {
+        font-size: 36px;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+      }
+      .h.italic {
+        font-style: italic;
+        font-weight: 500;
+      }
+      /* points reserved for later reveal steps */
+      .point.hidden {
+        visibility: hidden;
+      }
+      /* subscribe: today's YouTube channel row (dark mode), clicked over 3 frames */
+      .yt {
+        position: relative;
+        align-self: flex-start;
+        display: flex;
+        align-items: center;
+        gap: 34px;
+        padding: 52px 92px 52px 56px;
+        background: #0f0f0f;
+        border-radius: 36px;
+        box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.6);
+        font-family: 'Roboto', 'Inter', sans-serif;
+        color: #f1f1f1;
+      }
+      .yt .ytlogo {
+        position: absolute;
+        top: 22px;
+        right: 26px;
+        height: 30px;
+        width: 42px;
+      }
+      .yt .av {
+        width: 132px;
+        height: 132px;
+        border-radius: 50%;
+        flex: none;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background: var(--main);
+        color: #fff;
+        font-size: 64px;
+        font-weight: 500;
+      }
+      .yt .av img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .yt .who {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-right: 18px;
+      }
+      .yt .name {
+        font-size: 50px;
+        font-weight: 500;
+      }
+      .yt .handle {
+        font-size: 32px;
+        color: #aaa;
+      }
+      .yt .pill {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 16px;
+        height: 96px;
+        padding: 0 46px;
+        border-radius: 48px;
+        font-family: 'Roboto', 'Inter', sans-serif;
+        font-size: 40px;
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: none;
+        white-space: nowrap;
+      }
+      .yt .pill.sub {
+        background: #f1f1f1;
+        color: #0f0f0f;
+      }
+      .yt .pill.subbed,
+      .yt .pill.like {
+        background: #272727;
+        color: #f1f1f1;
+      }
+      .yt .pill.like {
+        padding: 0 36px;
+        gap: 22px;
+      }
+      .yt .pill.like i {
+        width: 2px;
+        height: 54px;
+        background: #555;
+      }
+      .yt .pill svg {
+        width: 50px;
+        height: 50px;
+        fill: currentColor;
+      }
+      .yt .pill.pressed {
+        transform: scale(0.96);
+      }
+      .yt .ring {
+        position: absolute;
+        inset: -14px;
+        border-radius: 60px;
+        border: 6px solid color-mix(in srgb, #fff 55%, transparent);
+      }
+      .yt .burst {
+        position: absolute;
+        left: 40px;
+        top: -44px;
+        width: 70px;
+        height: 70px;
+      }
+      .yt .burst path {
+        stroke: var(--accent);
+        stroke-width: 6;
+        stroke-linecap: round;
+      }
+      .cursor {
+        position: absolute;
+        width: 76px;
+        height: 76px;
+        z-index: 3;
+        filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+      }
+      /* end: clean room for YouTube's end-screen elements (Studio template "1 video + subscribe") */
+      .endroom {
+        position: absolute;
+        inset: 0;
+      }
+      .endroom .v,
+      .endroom .s {
+        position: absolute;
+        background: color-mix(in srgb, var(--ink) 5%, transparent);
+        border: 3px solid color-mix(in srgb, var(--ink) 8%, transparent);
+      }
+      .endroom .v {
+        left: 210px;
+        top: 440px;
+        width: 860px;
+        height: 484px;
+        border-radius: 28px;
+      }
+      .endroom .s {
+        left: 1290px;
+        top: 532px;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+      }
+      .box.endtop {
+        top: 120px;
+        bottom: auto;
+        height: 280px;
+      }
+
+      /* scene: a full-bleed vector picture from assets/scenes.js (background, characters, props), with an
+         optional line of text and speech bubbles */
+      #stage {
+        --sc-line: var(--second);
+        --sc-lw: 5px;
+        --sc-ink: var(--second);
+        --sc-ghost: #fff;
+        --sc-screen: var(--second);
+        --sc-wall: color-mix(in srgb, var(--ground) 86%, var(--main));
+        --sc-floor: color-mix(in srgb, var(--ground) 62%, var(--main));
+      }
+      #stage.paint {
+        --sc-line: #111;
+        --sc-lw: 8px;
+        --sc-ink: #111;
+        --sc-wall: var(--ground);
+        --sc-floor: color-mix(in srgb, var(--ground) 80%, #c3c3c3);
+      }
+      svg.scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        z-index: 0;
+        overflow: hidden;
+      }
+      #stage.paint svg.scene {
+        filter: url(#wobble-soft);
+      }
+      svg.scene .pop,
+      svg.scene .act,
+      svg.scene .bob,
+      svg.scene .pin {
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+      }
+      svg.scene .eyes,
+      svg.scene .x,
+      svg.scene .shadow,
+      svg.scene .float,
+      svg.scene .bgall {
+        transform-box: fill-box;
+        transform-origin: 50% 50%;
+      }
+      svg.scene .arm {
+        transform-box: view-box;
+        transform-origin: 0 0;
+      }
+      .box.scene-left {
+        right: 940px;
+        z-index: 1;
+      }
+      .box.scene-top {
+        top: 120px;
+        bottom: auto;
+        height: 300px;
+        justify-content: flex-start;
+        align-items: center;
+        text-align: center;
+        z-index: 1;
+      }
+      .box.plate {
+        background: color-mix(in srgb, var(--ground) 90%, transparent);
+        border-radius: 30px;
+        padding: 30px 44px;
+        height: auto;
+        justify-content: flex-start;
+      }
+      .box.scene-left.plate {
+        top: 50%;
+        bottom: auto;
+        translate: 0 -50%;
+        max-height: 760px;
+      }
+      #stage.dark .box.plate {
+        background: color-mix(in srgb, var(--second) 82%, transparent);
+      }
+      .speech {
+        position: absolute;
+        z-index: 3;
+        translate: -50% 0;
+        transform-origin: 50% 100%;
+        max-width: 560px;
+        width: max-content;
+        padding: 20px 32px;
+        font-family: var(--body);
+        font-weight: 600;
+        font-size: 42px;
+        line-height: 1.22;
+        text-align: center;
+        color: var(--sc-ink);
+        background: #fff;
+        border: 4px solid var(--sc-line);
+        border-radius: 30px;
+      }
+      .speech::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        bottom: -19px;
+        width: 30px;
+        height: 30px;
+        margin-left: -15px;
+        background: #fff;
+        border-right: 4px solid var(--sc-line);
+        border-bottom: 4px solid var(--sc-line);
+        transform: rotate(45deg);
+      }
+      #stage.paint .speech {
+        border-width: 6px;
+        border-radius: 34px 22px 40px 18px / 22px 38px 18px 34px;
+      }
+      /* illustration: a generated picture, full-bleed, with an optional line on a plate */
+      .illus {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        object-fit: cover;
+        z-index: 0;
+      }
+      .illus-ph {
+        position: absolute;
+        inset: 60px;
+        z-index: 0;
+        display: grid;
+        place-items: center;
+        padding: 80px;
+        border: 6px dashed var(--hair);
+        border-radius: 30px;
+        font-size: 40px;
+        line-height: 1.35;
+        text-align: center;
+        color: var(--muted);
+      }
+      .box.illus-bottom,
+      .box.illus-top {
+        top: auto;
+        bottom: 90px;
+        right: auto;
+        max-width: 1300px;
+        z-index: 1;
+      }
+      .box.illus-top {
+        top: 130px;
+        bottom: auto;
+      }
+      .box.illus-left {
+        right: 980px;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute">
+      <filter id="wobble" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="2" seed="7" />
+        <feDisplacementMap in="SourceGraphic" scale="9" />
+      </filter>
+      <filter id="wobble-soft" x="-2%" y="-10%" width="104%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="1" seed="3" />
+        <feDisplacementMap in="SourceGraphic" scale="5" />
+      </filter>
+    </svg>
+    <div id="stage"></div>
+    <script>
+      /*DOODLES*/
+    </script>
+    <script>
+      /*SCENES*/
+    </script>
+    <script>
+      window.LOGO = '__LOGO__'
+      window.YTICON = '__YTICON__'
+    </script>
+    <script>
+      ;(function () {
+        const stage = document.getElementById('stage')
+        const esc = (s) =>
+          String(s ?? '').replace(
+            /[&<>"]/g,
+            (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]
+          )
+        const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+        const withHl = (text, hl) => {
+          const t = String(text ?? '')
+          const i = hl ? t.indexOf(hl) : -1
+          return i < 0
+            ? rich(t)
+            : rich(t.slice(0, i)) +
+                '<span class="hl">' +
+                rich(hl) +
+                '</span>' +
+                rich(t.slice(i + hl.length))
+        }
+        const el = (tag, cls, parent, html) => {
+          const e = document.createElement(tag)
+          if (cls) e.className = cls
+          if (html != null) e.innerHTML = html
+          if (parent) parent.appendChild(e)
+          return e
+        }
+        let fitTargets = []
+        let mustFit = []
+        let speech = []
+        let A = [] // Web Animations of the slide on screen (window.anim)
+        let ticks = [] // per-frame callbacks (count-ups)
+
+        // shrink a heading until its box stops overflowing
+        const fit = (h, start, min) => {
+          let s = start
+          h.style.fontSize = s + 'px'
+          fitTargets.push({ h, min })
+          const box = h.closest('.box')
+          while (
+            s > min &&
+            (box.scrollHeight > box.clientHeight + 1 || h.scrollWidth > h.clientWidth + 1)
+          ) {
+            s -= 4
+            h.style.fontSize = s + 'px'
+          }
+        }
+
+        // doodles come from assets/doodles.js, inlined by the renderer in the script tag above
+        const doodle = (name) => (window.doodle ? window.doodle(name) : '')
+
+        window.show = function (S, C) {
+          A.forEach((a) => a.cancel())
+          A = []
+          ticks = []
+          speech = []
+          stage.innerHTML = ''
+          fitTargets = []
+          mustFit = []
+          C = C || {}
+          const layout = S.layout || 'statement'
+          const dark =
+            S.theme === 'dark' ||
+            layout === 'chapter' ||
+            layout === 'subscribe' ||
+            (layout === 'scene' && !!window.sceneIsDark && window.sceneIsDark(S))
+          const brand = C.brand !== false
+          const T = C.theme || {}
+          for (const k of ['ground', 'main', 'second', 'accent', 'marker'])
+            if (T[k]) stage.style.setProperty('--' + k, T[k])
+            else stage.style.removeProperty('--' + k)
+          if (C.fonts && C.fonts.display) stage.style.setProperty('--display', C.fonts.display)
+          if (C.fonts && C.fonts.body) stage.style.setProperty('--body', C.fonts.body)
+          const texture = T.texture || 'dots'
+          stage.className =
+            (dark ? 'dark' : '') +
+            (brand ? '' : ' nobrand') +
+            (texture === 'grain'
+              ? ' grain'
+              : texture === 'paint'
+                ? ' paint'
+                : texture === 'none'
+                  ? ' notex'
+                  : '')
+          const plain = layout === 'chapter' || layout === 'end'
+          const logo = brand && window.LOGO && window.LOGO !== '__LOGO__' ? window.LOGO : ''
+          if (!plain) {
+            if (C.label) el('div', 'label', stage, esc(C.label))
+            if (brand)
+              el(
+                'div',
+                'brand',
+                stage,
+                (logo ? '<img src="' + logo + '">' : '') + esc(C.name || '')
+              )
+          }
+          if (brand && C.progress != null)
+            el('div', 'progress', stage).style.width = (C.progress * 100).toFixed(2) + '%'
+          const box = el('div', 'box', stage)
+          const heading = (text, size, min, cls = 'h') => {
+            if (!text) return null
+            const h = el('h1', cls, box, withHl(text, S.highlight))
+            fit(h, size, min)
+            return h
+          }
+
+          if (layout === 'statement') {
+            heading(S.text, S.size || 120, 64)
+            if (S.sub) el('div', 'sub', box, rich(S.sub))
+          } else if (layout === 'points') {
+            heading(S.title, 76, 52)
+            const ol = el('ol', 'points' + ((S.points || []).length > 4 ? ' many' : ''), box)
+            ;(S.points || []).forEach((p, i) => {
+              const done = S.done != null && i < S.done
+              const dim = S.current != null && i !== S.current
+              const hidden = S.visible != null && i >= S.visible
+              const li = el(
+                'li',
+                'point card' +
+                  (done ? ' done' : '') +
+                  (dim ? ' dim' : '') +
+                  (hidden ? ' hidden' : ''),
+                ol
+              )
+              li.innerHTML =
+                '<span class="num">' + (done ? '✓' : i + 1) + '</span><span>' + rich(p) + '</span>'
+            })
+            mustFit.push(box)
+          } else if (layout === 'number') {
+            heading(S.title, 70, 48)
+            const n = el('div', 'bignum', box)
+            n.innerHTML =
+              (S.from
+                ? '<span class="from">' + esc(S.from) + '</span><span class="arrow">→</span>'
+                : '') +
+              '<span class="to">' +
+              esc(S.value) +
+              '</span>'
+            if (S.label) el('div', 'sub', box, rich(S.label))
+            mustFit.push(box)
+          } else if (layout === 'table') {
+            heading(S.title, 64, 44)
+            const card = el('div', 'card tablecard', box)
+            const rows = S.rows || []
+            card.style.setProperty('--tsize', (S.textSize || (rows.length > 6 ? 28 : 32)) + 'px')
+            const cell = (c) => {
+              const s = String(c ?? '')
+              return /^\[.+\]$/.test(s)
+                ? '<span class="pill">' + esc(s.slice(1, -1)) + '</span>'
+                : rich(s)
+            }
+            card.innerHTML =
+              '<table><thead><tr>' +
+              (S.columns || []).map((c) => '<th>' + esc(c) + '</th>').join('') +
+              '</tr></thead><tbody>' +
+              rows
+                .map(
+                  (r, i) =>
+                    '<tr class="' +
+                    ((S.mark || []).includes(i) ? 'mark' : '') +
+                    ((S.cut || []).includes(i) ? ' cut' : '') +
+                    '">' +
+                    r.map((c) => '<td>' + cell(c) + '</td>').join('') +
+                    '</tr>'
+                )
+                .join('') +
+              '</tbody></table>'
+            if (S.note) el('div', 'note', box, rich(S.note))
+            mustFit.push(box)
+          } else if (layout === 'doc') {
+            heading(S.title, 60, 44)
+            const card = el('div', 'card doc', box)
+            const lines = S.lines || []
+            card.style.setProperty('--dsize', (S.textSize || (lines.length > 9 ? 28 : 34)) + 'px')
+            const on = S.on || []
+            card.innerHTML =
+              '<div class="bar"><i></i><i></i><i></i><span>' +
+              esc(S.file || '') +
+              '</span></div><pre>' +
+              lines
+                .map(
+                  (l, i) =>
+                    '<span class="ln">' +
+                    (on.length
+                      ? '<span class="' +
+                        (on.includes(i) ? 'on' : 'off') +
+                        '">' +
+                        (esc(l) || ' ') +
+                        '</span>'
+                      : esc(l) || ' ') +
+                    '</span>'
+                )
+                .join('') +
+              '</pre>'
+            mustFit.push(box)
+          } else if (layout === 'fields') {
+            heading(S.title, 60, 44)
+            const card = el('div', 'card fields', box)
+            for (const f of S.fields || []) {
+              const row = el('div', 'field', card)
+              row.innerHTML =
+                '<span class="k">' +
+                esc(f.k) +
+                '</span><span>' +
+                rich(f.v) +
+                '</span>' +
+                (f.n
+                  ? '<span class="n' + (f.bad ? ' bad' : '') + '">' + esc(f.n) + '</span>'
+                  : '<span></span>')
+            }
+            if (S.note) el('div', 'note', box, rich(S.note))
+            mustFit.push(box)
+          } else if (layout === 'chat') {
+            heading(S.title, 60, 44)
+            const card = el('div', 'card chat', box)
+            for (const b of S.bubbles || [])
+              el('div', 'bubble ' + (b.role === 'user' ? 'user' : 'ai'), card, rich(b.text))
+            if (S.note) el('div', 'note', box, rich(S.note))
+            mustFit.push(box)
+          } else if (layout === 'image') {
+            heading(S.title, 56, 40)
+            const w = el('div', 'imgwrap', box)
+            const img = el('img', '', w)
+            img.src = S._src || ''
+            img.alt = S.alt || ''
+            if (S.caption) el('div', 'caption', box, rich(S.caption))
+          } else if (layout === 'chapter') {
+            box.classList.add('center')
+            el('div', 'eyebrow', box, esc(S.eyebrow || ''))
+            heading(S.text, 132, 72)
+          } else if (layout === 'point') {
+            if (S.title)
+              el('div', 'of', box, esc(S.title) + (S.of ? ' · ' + S.n + ' of ' + S.of : ''))
+            const row = el('div', 'pointbig', box)
+            el('span', 'num', row, esc(S.n ?? ''))
+            const h = el('h1', 'h', row, withHl(S.text, S.highlight))
+            fit(h, S.size || 104, 56)
+            if (S.sub) el('div', 'sub', box, rich(S.sub))
+          } else if (layout === 'word') {
+            box.classList.add('word')
+            heading(S.text, S.size || 240, 110)
+            if (S.sub) el('div', 'sub', box, rich(S.sub))
+          } else if (layout === 'doodle') {
+            const row = el('div', 'doodle-row' + (S.text ? '' : ' solo'), box)
+            row.insertAdjacentHTML('beforeend', doodle(S.draw))
+            if (S.text) {
+              const side = el('div', 'side', row)
+              const h = el('h1', 'h', side, withHl(S.text, S.highlight))
+              fit(h, S.size || 104, 56)
+              if (S.sub) el('div', 'sub', side, rich(S.sub))
+            }
+            if (S.caption) el('div', 'doodle-cap', box, rich(S.caption))
+            mustFit.push(box)
+          } else if (layout === 'scene') {
+            const many = (Array.isArray(S.cast) ? S.cast.length : 1) > 1
+            const textMode = S.text ? (many || S.textAt === 'top' ? 'top' : 'left') : 'none'
+            const sc = window.scene ? window.scene(S, { textMode, mascot: C.mascot }) : null
+            if (sc) stage.insertAdjacentHTML('afterbegin', sc.svg)
+            if (S.text) {
+              box.classList.add(textMode === 'top' ? 'scene-top' : 'scene-left')
+              if (S.bg && S.bg !== 'plain') box.classList.add('plate')
+              heading(S.text, S.size || (textMode === 'top' ? 84 : 100), 48)
+              if (S.sub) el('div', 'sub', box, rich(S.sub))
+              mustFit.push(box)
+            }
+            for (const c of sc ? sc.cast : [])
+              if (c.say) {
+                const b = el('div', 'speech', stage, rich(c.say))
+                b.style.left = Math.min(1640, Math.max(280, c.x)) + 'px'
+                b.style.bottom = Math.round(1080 - c.headTop + 34) + 'px'
+                speech.push(b)
+              }
+          } else if (layout === 'illustration') {
+            const pic = S._src
+              ? el('img', 'illus')
+              : el(
+                  'div',
+                  'illus-ph',
+                  null,
+                  '<div><b>Illustration not generated yet</b><br>' +
+                    esc(S.prompt || S.src || '') +
+                    '</div>'
+                )
+            if (S._src) pic.src = S._src
+            stage.insertBefore(pic, stage.firstChild)
+            if (S.text) {
+              box.classList.add('illus-' + (S.at || 'bottom'), 'plate')
+              heading(S.text, S.size || 76, 44)
+              if (S.sub) el('div', 'sub', box, rich(S.sub))
+            }
+          } else if (layout === 'quote') {
+            el('div', 'qmark', box, '\u201C')
+            heading(S.text, S.size || 96, 56, 'h italic')
+            if (S.by) el('div', 'by', box, '— ' + rich(S.by))
+          } else if (layout === 'subscribe') {
+            heading(S.text, 88, 52)
+            const ch = C.channel || {}
+            const f = S._frame ?? 2
+            const card = el('div', 'yt', box)
+            if (window.YTICON && window.YTICON !== '__YTICON__')
+              el('img', 'ytlogo', card).src = window.YTICON
+            const av = el('div', 'av', card)
+            if (ch.avatar) el('img', '', av).src = ch.avatar
+            else av.textContent = (ch.name || '?').trim().charAt(0).toUpperCase()
+            el(
+              'div',
+              'who',
+              card,
+              '<span class="name">' +
+                esc(ch.name || '') +
+                '</span>' +
+                (ch.handle ? '<span class="handle">' + esc(ch.handle) + '</span>' : '')
+            )
+            const ICON = {
+              bell: '<svg viewBox="0 0 24 24"><path d="M10 20h4c0 1.1-.9 2-2 2s-2-.9-2-2zm10-2.65V19H4v-1.65l2-1.88v-5.15C6 7.4 7.56 5.1 10 4.34v-.38c0-1.42 1.49-2.5 2.99-1.76.65.32 1.01 1.03 1.01 1.76v.39c2.44.75 4 3.06 4 5.98v5.15l2 1.87z"/></svg>',
+              down: '<svg viewBox="0 0 24 24"><path d="m18 9.28-6.35 6.35-6.37-6.35.72-.71 5.64 5.65 5.65-5.65z"/></svg>',
+              up: '<svg viewBox="0 0 24 24"><path d="M18.77 11h-4.23l1.52-4.94C16.38 5.03 15.54 4 14.38 4c-.58 0-1.14.24-1.52.65L7 11H3v10h14.43c1.06 0 1.98-.67 2.19-1.61l1.34-6c.27-1.24-.78-2.39-2.19-2.39zM7 20H4v-8h3v8z"/></svg>',
+              dislike:
+                '<svg viewBox="0 0 24 24"><path d="M17 4h-1H6.57C5.5 4 4.59 4.67 4.38 5.61l-1.34 6C2.77 12.85 3.82 14 5.23 14h4.23l-1.52 4.94C7.62 19.97 8.46 21 9.62 21c.58 0 1.14-.24 1.52-.65L17 14h4V4h-4zm-6.6 15.67c-.19.21-.46.33-.78.33-.53 0-.89-.53-.73-1.06l1.73-5.94H5.23c-.87 0-1.29-.73-1.24-1.17l1.34-6C5.39 5.33 5.85 5 6.57 5H16v8.61l-5.6 6.06zM20 13h-3V5h3v8z"/></svg>'
+            }
+            const pill = el(
+              'div',
+              'pill ' + (f >= 2 ? 'subbed' : 'sub') + (f === 1 ? ' pressed' : ''),
+              card
+            )
+            pill.innerHTML =
+              f >= 2
+                ? ICON.bell + '<span>' + esc(S.done || 'Subscribed') + '</span>' + ICON.down
+                : '<span>' + esc(S.button || 'Subscribe') + '</span>'
+            if (f === 1) el('span', 'ring', pill)
+            if (f >= 2)
+              el(
+                'span',
+                'burst',
+                pill,
+                '<svg viewBox="0 0 70 70"><path d="M35 6v14M10 22l11 8M60 22l-11 8"/></svg>'
+              )
+            el('div', 'pill like', card, ICON.up + '<i></i>' + ICON.dislike)
+            if (S.sub) el('div', 'sub', box, rich(S.sub))
+            if (f >= 1) {
+              const cur = el(
+                'div',
+                'cursor',
+                stage,
+                '<svg viewBox="0 0 24 24"><path d="M5 2.5v17.2l4.6-4.4 2.9 6.6 2.9-1.3-2.9-6.5H19z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+              )
+              const r = pill.getBoundingClientRect()
+              const sr = stage.getBoundingClientRect()
+              cur.style.left = r.left - sr.left + r.width * 0.62 + 'px'
+              cur.style.top = r.top - sr.top + r.height * 0.5 + 'px'
+            }
+          } else if (layout === 'end') {
+            const room = el('div', 'endroom', stage)
+            el('div', 'v', room)
+            el('div', 's', room)
+            stage.appendChild(box)
+            box.classList.add('endtop')
+            heading(S.text, 84, 48)
+          }
+          return document.fonts.ready
+        }
+
+        // ---------- animation (optional) ----------
+        // Entrances per layout (headline rises, highlight sweeps, rows and lines come in one by one, numbers
+        // count up, doodles draw themselves, characters pop in and act out their pose), and for scenes an idle
+        // loop (bob, blink, wave, twinkle) the renderer repeats while the voice runs. Slides continued from the
+        // previous one (S._cont: same layout and title) only animate what changed.
+        window.anim = function (S, o = {}) {
+          A.forEach((a) => a.cancel())
+          A = []
+          ticks = []
+          const sp = o.speed || 1
+          const fps = o.fps || 30
+          const EASE = 'cubic-bezier(.2,.8,.2,1)'
+          const BOUNCE = 'cubic-bezier(.34,1.56,.64,1)'
+          let end = 0
+          const add = (e, kf, d, delay = 0, easing = EASE) => {
+            if (!e) return
+            const a = e.animate(kf, { duration: d / sp, delay: delay / sp, fill: 'both', easing })
+            a.pause()
+            A.push(a)
+            end = Math.max(end, (delay + d) / sp)
+          }
+          const rise = (e, delay = 0, dist = 36, d = 560) =>
+            add(
+              e,
+              [
+                { opacity: 0, transform: `translateY(${dist}px)` },
+                { opacity: 1, transform: 'none' }
+              ],
+              d,
+              delay
+            )
+          const fade = (e, delay = 0, d = 420) => add(e, [{ opacity: 0 }, { opacity: 1 }], d, delay)
+          const pop = (e, delay = 0, d = 520, from = 0.6) =>
+            add(
+              e,
+              [
+                { opacity: 0, transform: `scale(${from})` },
+                { opacity: 1, transform: 'none' }
+              ],
+              d,
+              delay,
+              BOUNCE
+            )
+          const slideIn = (e, delay = 0, dx = -60, d = 520) =>
+            add(
+              e,
+              [
+                { opacity: 0, transform: `translateX(${dx}px)` },
+                { opacity: 1, transform: 'none' }
+              ],
+              d,
+              delay
+            )
+          const flash = (e, delay = 0) => add(e, [{ opacity: 0.25 }, { opacity: 1 }], 520, delay)
+          const sweep = (e, delay = 0) => {
+            if (!e) return
+            const full = getComputedStyle(e).backgroundSize
+            const hgt = full.split(' ')[1] || '40%'
+            add(
+              e,
+              [{ backgroundSize: `0% ${hgt}` }, { backgroundSize: full }],
+              520,
+              delay,
+              'cubic-bezier(.6,0,.3,1)'
+            )
+          }
+          // a number counts up to its value (keeps prefix, suffix, commas and decimals)
+          const count = (e, delay, d, fromText) => {
+            if (!e) return
+            const parse = (t) => {
+              const m = String(t || '')
+                .trim()
+                .match(/^([^\d-]*)(-?[\d,]*\.?\d+)([^\d]*)$/)
+              return (
+                m && { pre: m[1], num: parseFloat(m[2].replace(/,/g, '')), raw: m[2], post: m[3] }
+              )
+            }
+            // anim() can run twice on one slide (re-timed for a short slot): keep the real value
+            if (e.dataset.final == null) e.dataset.final = e.textContent
+            const final = e.dataset.final
+            const to = parse(final)
+            if (!to) return
+            const from = parse(fromText)
+            const start = from && from.post === to.post ? from.num : 0
+            const dec = (to.raw.split('.')[1] || '').length
+            const fmt = (v) =>
+              to.pre +
+              (to.raw.includes(',')
+                ? v.toLocaleString('en-US', {
+                    minimumFractionDigits: dec,
+                    maximumFractionDigits: dec
+                  })
+                : v.toFixed(dec)) +
+              to.post
+            ticks.push((ms) => {
+              const p = Math.min(1, Math.max(0, (ms - delay / sp) / (d / sp)))
+              e.textContent =
+                p >= 1 ? final : fmt(start + (to.num - start) * (1 - Math.pow(1 - p, 3)))
+            })
+            end = Math.max(end, (delay + d) / sp)
+          }
+          const $ = (q) => stage.querySelector(q)
+          const $$ = (q) => [...stage.querySelectorAll(q)]
+          const layout = S.layout || 'statement'
+          const cont = !!S._cont
+          const h = $('.box .h')
+          const hl = $('.box .h .hl')
+          const sub = $('.box .sub')
+          const headline = (delay = 0) => {
+            rise(h, delay)
+            sweep(hl, delay + 420)
+          }
+          const loops = [] // [element, keyframes] repeated every LOOP ms after the intro
+
+          if (layout === 'statement') {
+            headline(0)
+            rise(sub, 260)
+          } else if (layout === 'word') {
+            add(
+              h,
+              [
+                { opacity: 0, transform: 'scale(1.3)' },
+                { opacity: 1, transform: 'none' }
+              ],
+              460,
+              0,
+              BOUNCE
+            )
+            sweep(hl, 380)
+            rise(sub, 300)
+          } else if (layout === 'point') {
+            fade($('.of'), 0)
+            pop($('.pointbig .num'), 0)
+            rise(h, 120)
+            sweep(hl, 540)
+            rise(sub, 380)
+          } else if (layout === 'chapter') {
+            slideIn($('.eyebrow'), 0, -40, 480)
+            rise(h, 140, 44, 700)
+            sweep(hl, 700)
+          } else if (layout === 'quote') {
+            pop($('.qmark'), 0, 500, 0.4)
+            rise(h, 160)
+            fade($('.by'), 620)
+          } else if (layout === 'points') {
+            const items = $$('.points .point')
+            if (S.visible != null) {
+              if (!cont) rise(h, 0)
+              slideIn(items[S.visible - 1], cont ? 0 : 200)
+              if (S.visible > 1) pop(items[S.visible - 2].querySelector('.num'), 120)
+            } else if (cont && S.current != null) {
+              const it = items[S.current]
+              add(
+                it,
+                [
+                  { opacity: 0.45, transform: 'scale(.97)' },
+                  { opacity: 1, transform: 'scale(1.02)', offset: 0.6 },
+                  { opacity: 1, transform: 'none' }
+                ],
+                560
+              )
+            } else if (!cont) {
+              rise(h, 0)
+              items.forEach((it, i) => slideIn(it, 200 + i * 140))
+            }
+          } else if (layout === 'number') {
+            if (!cont) rise(h, 0)
+            const from = $('.bignum .from')
+            fade(from, 150)
+            slideIn($('.bignum .arrow'), 300, -30, 400)
+            const to = $('.bignum .to')
+            pop(to, from ? 420 : 150, 520, 0.85)
+            count(to, from ? 420 : 150, 900, from && from.textContent)
+            rise(sub, 450)
+          } else if (layout === 'table') {
+            if (cont) $$('.tablecard tr.mark').forEach((r) => flash(r, 0))
+            else {
+              rise(h, 0)
+              rise($('.tablecard'), 100, 24, 480)
+              const rows = $$('.tablecard tbody tr')
+              rows.forEach((r, i) => rise(r, 280 + i * Math.min(90, 700 / rows.length), 14, 360))
+              fade($('.note'), 500)
+            }
+          } else if (layout === 'doc') {
+            if (cont) $$('.doc pre .on').forEach((e) => flash(e, 0))
+            else {
+              rise(h, 0)
+              rise($('.doc'), 100, 24, 480)
+              const lines = $$('.doc pre .ln')
+              const step = Math.min(110, 1000 / Math.max(1, lines.length))
+              lines.forEach((l, i) =>
+                add(
+                  l,
+                  [
+                    { clipPath: 'inset(-12px 100% -12px -12px)' },
+                    { clipPath: 'inset(-12px -12px -12px -12px)' }
+                  ],
+                  320,
+                  320 + i * step,
+                  'linear'
+                )
+              )
+            }
+          } else if (layout === 'fields') {
+            if (!cont) {
+              rise(h, 0)
+              rise($('.fields'), 100, 24, 480)
+              $$('.field').forEach((f, i) => rise(f, 280 + i * 110, 14, 380))
+              fade($('.note'), 500)
+            }
+          } else if (layout === 'chat') {
+            if (!cont) rise(h, 0)
+            fade($('.chat'), 80, 360)
+            $$('.bubble').forEach((b, i) => {
+              b.style.transformOrigin = b.classList.contains('user') ? '100% 100%' : '0 100%'
+              pop(b, 260 + i * 380, 480, 0.7)
+            })
+            fade($('.note'), 400)
+          } else if (layout === 'image') {
+            rise(h, 0)
+            add(
+              $('.imgwrap'),
+              [
+                { opacity: 0, transform: 'scale(.94)' },
+                { opacity: 1, transform: 'none' }
+              ],
+              700,
+              120
+            )
+            fade($('.caption'), 500)
+          } else if (layout === 'doodle') {
+            // the drawing draws itself: each stroke traced, then its fill comes in
+            const shapes = $$(
+              'svg.doodle path, svg.doodle rect, svg.doodle circle, svg.doodle ellipse, svg.doodle line, svg.doodle polyline, svg.doodle polygon, svg.doodle text'
+            )
+            const step = Math.min(160, 1100 / Math.max(1, shapes.length))
+            shapes.forEach((e, i) => {
+              const L =
+                e.getTotalLength && getComputedStyle(e).stroke !== 'none' ? e.getTotalLength() : 0
+              if (L > 0) {
+                e.style.strokeDasharray = L + ' ' + L
+                add(
+                  e,
+                  [
+                    { strokeDashoffset: L, fillOpacity: 0 },
+                    { strokeDashoffset: 0, fillOpacity: 0, offset: 0.7 },
+                    { strokeDashoffset: 0, fillOpacity: 1 }
+                  ],
+                  560,
+                  80 + i * step,
+                  'ease-in-out'
+                )
+              } else fade(e, 80 + i * step, 300)
+            })
+            rise(h, 250)
+            sweep(hl, 700)
+            rise(sub, 450)
+            fade($('.doodle-cap'), 600)
+          } else if (layout === 'scene') {
+            add(
+              $('svg.scene .bgall'),
+              [{ transform: 'scale(1.05)' }, { transform: 'none' }],
+              1400,
+              0,
+              'cubic-bezier(.2,.7,.2,1)'
+            )
+            $$('svg.scene .prop .pin').forEach((p, i) => pop(p, 200 + i * 120, 520, 0.5))
+            const box = $('.box.plate')
+            if (box) rise(box, 0)
+            else rise(h, 0)
+            sweep(hl, 450)
+            rise(sub, 250)
+            const rot = (arm, deg) => `rotate(${arm.classList.contains('armL') ? deg : -deg}deg)`
+            const ANG = (arm) => Number(arm.dataset.a)
+            const swing = (arm, deg) => ({ transform: rot(arm, deg) })
+            $$('svg.scene .fig').forEach((f, i) => {
+              const d0 = 250 + i * 200
+              const popG = f.querySelector('.pop')
+              const act = f.querySelector('.act')
+              const bob = f.querySelector('.bob')
+              const arms = [...f.querySelectorAll('.arm')]
+              const raised = arms.slice().sort((a, b) => ANG(b) - ANG(a))[0]
+              add(
+                popG,
+                [
+                  { opacity: 0, transform: 'translateY(80px) scale(.7)' },
+                  { opacity: 1, transform: 'none' }
+                ],
+                560,
+                d0,
+                BOUNCE
+              )
+              fade(f.querySelector('.shadow'), d0, 400)
+              const at = d0 + 380
+              const kind = f.dataset.act
+              const fromRest = (arm, d = 520) =>
+                add(
+                  arm,
+                  [
+                    swing(arm, 14),
+                    swing(arm, ANG(arm) + (ANG(arm) > 14 ? 10 : -10)),
+                    swing(arm, ANG(arm))
+                  ],
+                  d,
+                  at
+                )
+              if (kind === 'wave' && raised)
+                add(
+                  raised,
+                  [0, -35, 10, -35, 0].map((dd) => swing(raised, ANG(raised) + dd)),
+                  1000,
+                  at,
+                  'ease-in-out'
+                )
+              else if (kind === 'talk' && raised)
+                add(
+                  raised,
+                  [0, -22, 0, -22, 0].map((dd) => swing(raised, ANG(raised) + dd)),
+                  900,
+                  at,
+                  'ease-in-out'
+                )
+              else if (kind === 'point' || kind === 'think')
+                raised &&
+                  fromRest(kind === 'think' ? arms.find((a) => ANG(a) < 0) || raised : raised)
+              else if (kind === 'shrug' || kind === 'shock' || kind === 'hop') {
+                arms.forEach((a) => fromRest(a, kind === 'shock' ? 320 : 480))
+                const up = { shrug: -14, shock: -50, hop: -60 }[kind]
+                add(
+                  act,
+                  kind === 'hop'
+                    ? [
+                        { transform: 'none' },
+                        { transform: `translateY(${up}px)` },
+                        { transform: 'none' },
+                        { transform: `translateY(${up * 0.6}px)` },
+                        { transform: 'none' }
+                      ]
+                    : [
+                        { transform: 'none' },
+                        { transform: `translateY(${up}px)`, offset: 0.4 },
+                        { transform: 'none' }
+                      ],
+                  kind === 'hop' ? 900 : 460,
+                  at,
+                  'ease-in-out'
+                )
+              } else if (kind === 'droop')
+                add(act, [{ transform: 'translateY(-10px)' }, { transform: 'none' }], 700, at)
+              f.querySelectorAll('.x').forEach((x, j) =>
+                x.classList.contains('drop')
+                  ? add(
+                      x,
+                      [
+                        { opacity: 0, transform: 'translateY(-24px)' },
+                        { opacity: 1, transform: 'none' }
+                      ],
+                      600,
+                      at + 300
+                    )
+                  : pop(x, at + 200 + j * 120, 420, 0.2)
+              )
+              // idle loop
+              const lift = f.dataset.float === '1' ? -14 : -4
+              loops.push([
+                bob,
+                [
+                  { transform: 'none' },
+                  { transform: `translateY(${lift}px)` },
+                  { transform: 'none' }
+                ]
+              ])
+              if (f.dataset.float === '1')
+                loops.push([
+                  f.querySelector('.shadow'),
+                  [{ transform: 'none' }, { transform: 'scale(.86, 1)' }, { transform: 'none' }]
+                ])
+              const b = 0.62 + i * 0.1
+              loops.push([
+                f.querySelector('.eyes'),
+                [
+                  { transform: 'none' },
+                  { transform: 'none', offset: b },
+                  { transform: 'scaleY(.1)', offset: b + 0.04 },
+                  { transform: 'none', offset: b + 0.08 },
+                  { transform: 'none' }
+                ]
+              ])
+              if (kind === 'wave' && raised)
+                loops.push([
+                  raised,
+                  [0, -28, 0, -28, 0].map((dd) => swing(raised, ANG(raised) + dd))
+                ])
+            })
+            $$('.speech').forEach((b, i) => pop(b, 950 + i * 450, 480, 0.5))
+            $$('svg.scene .cloud').forEach((c, i) =>
+              loops.push([
+                c,
+                [
+                  { transform: 'none' },
+                  { transform: `translateX(${i % 2 ? -10 : 10}px)` },
+                  { transform: 'none' }
+                ]
+              ])
+            )
+            $$('svg.scene .star').forEach((st, i) => {
+              if (i % 3) return
+              const m = 0.25 + ((i * 37) % 50) / 100
+              loops.push([st, [{ opacity: 1 }, { opacity: 0.2, offset: m }, { opacity: 1 }]])
+            })
+            $$('svg.scene .float').forEach((fl) =>
+              loops.push([
+                fl,
+                [{ transform: 'none' }, { transform: 'translateY(-12px)' }, { transform: 'none' }]
+              ])
+            )
+          } else if (layout === 'illustration') {
+            add(
+              $('.illus'),
+              [{ transform: 'scale(1.08)' }, { transform: 'none' }],
+              1600,
+              0,
+              'cubic-bezier(.2,.7,.2,1)'
+            )
+            rise($('.box.plate'), 300)
+            sweep(hl, 800)
+          }
+
+          // snap the intro to whole frames; loops start right after it, so frame `intro*fps` is loop phase 0
+          const intro = Math.ceil((end / 1000) * fps - 1e-6) / fps
+          const LOOP = 2000
+          for (const [e, kf] of loops) {
+            if (!e) continue
+            const a = e.animate(
+              kf.map((k) => ({ easing: 'ease-in-out', ...k })),
+              { duration: LOOP, delay: intro * 1000, iterations: Infinity }
+            )
+            a.pause()
+            A.push(a)
+          }
+          window.seek(0)
+          return { intro, loop: loops.length ? LOOP / 1000 : 0 }
+        }
+        window.seek = function (t) {
+          for (const a of A) a.currentTime = t * 1000
+          for (const f of ticks) f(t * 1000)
+        }
+
+        window.check = function () {
+          const issues = []
+          for (const { h, min } of fitTargets) {
+            const box = h.closest('.box')
+            if (box.scrollHeight > box.clientHeight + 2 || h.scrollWidth > h.clientWidth + 2)
+              issues.push('text does not fit even at ' + min + 'px: shorten it')
+          }
+          for (const b of mustFit)
+            if (b.scrollHeight > b.clientHeight + 2)
+              issues.push(
+                'content is ' + (b.scrollHeight - b.clientHeight) + 'px too tall: cut rows/lines'
+              )
+          stage.querySelectorAll('img').forEach((i) => {
+            if ((i.closest('.imgwrap') || i.classList.contains('illus')) && !i.naturalWidth)
+              issues.push('image did not load')
+          })
+          const sr = stage.getBoundingClientRect()
+          const head = stage.querySelector('.box .h')
+          const hr = head && head.getBoundingClientRect()
+          for (const b of speech) {
+            const r = b.getBoundingClientRect()
+            if (r.height > 230) issues.push('speech bubble is over 3 lines: shorten its `say`')
+            if (r.left < sr.left + 16 || r.right > sr.right - 16 || r.top < sr.top + 110)
+              issues.push(
+                'speech bubble runs off the frame: shorten its `say` or use fewer characters'
+              )
+            if (
+              hr &&
+              r.top < hr.bottom &&
+              r.bottom > hr.top &&
+              r.left < hr.right &&
+              r.right > hr.left
+            )
+              issues.push('speech bubble covers the text: shorten one of them, or drop `text`')
+          }
+          return [...new Set(issues)]
+        }
+      })()
+    </script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+node_modules/
+videos/
+.tts/
+.env
+faceless-youtube.config.json
+channel.md
+youtube-topics.csv
+skills/*/styles/*/images/*
+!skills/*/styles/*/images/README.md
+.DS_Store

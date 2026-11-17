@@ -1,0 +1,14 @@
+{
+  "name": "faceless-youtube-video-creator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Renderers for the Faceless YouTube Video Creator skill: slides, voice, MP4, thumbnails.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}

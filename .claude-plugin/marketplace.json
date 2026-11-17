@@ -1,0 +1,15 @@
+{
+  "name": "zentesimal-skills",
+  "description": "Open-source Claude Code skills by Zentesimal.",
+  "owner": {
+    "name": "Zentesimal",
+    "url": "https://zentesimal.com"
+  },
+  "plugins": [
+    {
+      "name": "faceless-youtube-video-creator",
+      "source": "./",
+      "description": "Make finished faceless YouTube videos locally: topic, script, AI voiceover, animated slides and scenes, subtitles, chapters and A/B thumbnails."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "identity": {
+    "name": "My Channel",
+    "handle": "mychannel",
+    "avatar": null,
+    "company": null,
+    "promise": "Practical AI, tested on real work.",
+    "audience": "people who use AI at work and want more out of it",
+    "pillars": ["How it works", "How to use it", "Where it breaks", "Hacks"],
+    "language": "en"
+  },
+  "look": {
+    "preset": "clean",
+    "colors": { "ground": "#f4f4f6", "main": "#2457d6", "second": "#14171f", "accent": "#f5a524" },
+    "fonts": { "display": "Fraunces", "body": "Inter" },
+    "fontFiles": {},
+    "texture": "dots",
+    "logo": null,
+    "mascot": "ghost",
+    "imageStyle": null
+  },
+  "video": {
+    "minutes": 15,
+    "pace": 3,
+    "voice": "af_heart",
+    "animate": "auto",
+    "illustrations": false
+  },
+  "paths": {
+    "workspace": "./videos",
+    "topics": "./youtube-topics.csv",
+    "channel": "./channel.md"
+  },
+  "models": { "image": "gpt-image-2.5-sunburst" },
+  "credit": true,
+  "integrations": { "zentesimal": false }
+}

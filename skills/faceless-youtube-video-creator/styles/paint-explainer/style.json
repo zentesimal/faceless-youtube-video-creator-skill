@@ -1,0 +1,18 @@
+{
+  "style": "story",
+  "pace": 3,
+  "gap": 0.05,
+  "sectionGap": 0.2,
+  "maxPause": 0.2,
+  "theme": {
+    "ground": "#ffffff",
+    "main": "#3f48cc",
+    "second": "#111111",
+    "accent": "#ed1c24",
+    "marker": "#fff200",
+    "display": "Permanent Marker",
+    "body": "Patrick Hand",
+    "fontFiles": { "display": "fonts/PermanentMarker.woff2", "body": "fonts/PatrickHand.woff2" },
+    "texture": "paint"
+  }
+}

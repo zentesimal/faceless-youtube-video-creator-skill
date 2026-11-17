@@ -1,0 +1,888 @@
+<!doctype html>
+<!--
+  YouTube thumbnail, 1280×720 (16:9). render-thumbnails.mjs fills the placeholders below (fonts, logo,
+  one variant of the spec, the photo as a data URL) and screenshots #stage.
+  Layouts: "bold" (huge headline + face/mascot), "versus" (headline + two panels), "chat" (prompt/answer + headline),
+  and four styles common in the feed, drawn over a full-bleed picture (a `scene` from scenes.js, or the photo):
+  "question" (one huge outlined question on top), "title" (documentary title: stacked condensed words + tag),
+  "mood" (one short condensed question, top-left), "card" (a white question card next to the character).
+  window.check() returns layout problems; the renderer exits 2 on them.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      /*FONTS*/
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+      }
+      #stage {
+        --ground: #f1eefb;
+        --main: #22578b;
+        --second: #1a2347;
+        --accent: #eaa73d;
+        --bad: #e5484d;
+        --good: #2fa36b;
+        --bg: var(--second);
+        --ink: var(--ground);
+        --card: color-mix(in srgb, var(--second) 82%, var(--ground));
+        --hair: color-mix(in srgb, var(--second) 55%, var(--ground));
+        --muted: color-mix(in srgb, var(--ground) 70%, var(--second));
+        --ghost: var(--ground);
+        --ghost-line: color-mix(in srgb, var(--ground) 55%, var(--main));
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        color: var(--ink);
+        background:
+          radial-gradient(
+            ellipse 70% 90% at 78% 60%,
+            color-mix(in srgb, var(--main) 70%, transparent),
+            transparent 70%
+          ),
+          var(--bg);
+        font-family: 'Inter', system-ui, sans-serif;
+      }
+      #stage.light {
+        --bg: var(--ground);
+        --ink: var(--second);
+        --card: #fff;
+        --hair: color-mix(in srgb, var(--ground) 60%, var(--main));
+        --muted: color-mix(in srgb, var(--second) 62%, var(--ground));
+        --ghost: #fff;
+        --ghost-line: color-mix(in srgb, var(--ground) 40%, var(--main));
+        background:
+          radial-gradient(
+            ellipse 70% 90% at 78% 60%,
+            color-mix(in srgb, var(--main) 22%, transparent),
+            transparent 70%
+          ),
+          var(--bg);
+      }
+      .logo {
+        position: absolute;
+        left: 44px;
+        top: 40px;
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        z-index: 3;
+      }
+      .headline {
+        margin: 0;
+        font-weight: 850;
+        line-height: 0.98;
+        letter-spacing: -0.025em;
+        white-space: pre-line;
+        word-break: keep-all;
+        overflow-wrap: normal;
+        overflow: hidden;
+        text-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+      }
+      #stage.light .headline {
+        text-shadow: none;
+      }
+      /* paint look (MS Paint, hand-drawn): white canvas, ink text, yellow marker, a doodle instead of the ghost */
+      #stage.paint {
+        --bg: var(--ground);
+        --ink: var(--second);
+        /* the canvas is always light here, whatever `theme` says: panels and bubbles follow it, or the
+           dark theme's cards put the ink on a dark fill */
+        --card: var(--ground);
+        --hair: var(--second);
+        --muted: color-mix(in srgb, var(--second) 72%, var(--ground));
+        background: var(--ground);
+      }
+      #stage.paint .headline {
+        text-shadow: none;
+        font-weight: 400;
+        letter-spacing: 0;
+        line-height: 1.14;
+      }
+      #stage.paint .headline .hl {
+        background: var(--marker, #fff200);
+        color: var(--second);
+        border-radius: 6px 14px 8px 16px;
+      }
+      #stage.paint .sticker {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: none;
+        border: 5px solid var(--second);
+      }
+      .visual svg.doodle {
+        width: 500px;
+        height: 420px;
+        filter: url(#wobble);
+        overflow: visible;
+        margin-bottom: 140px;
+      }
+      .chat .visual svg.doodle {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+      .headline .hl {
+        background: var(--accent);
+        color: var(--second);
+        padding: 0 0.1em;
+        margin: 0 -0.04em;
+        border-radius: 0.08em;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+        text-shadow: none;
+      }
+      .sticker {
+        position: absolute;
+        z-index: 4;
+        background: var(--accent);
+        color: var(--second);
+        font-weight: 850;
+        font-size: 40px;
+        letter-spacing: -0.01em;
+        padding: 10px 24px 12px;
+        border-radius: 14px;
+        transform: rotate(-5deg);
+        box-shadow: 0 8px 0 color-mix(in srgb, var(--accent) 55%, var(--second));
+        white-space: nowrap;
+      }
+      /* ---------- bold ---------- */
+      .bold .textbox {
+        position: absolute;
+        left: 56px;
+        top: 128px;
+        width: 700px;
+        height: 520px;
+        display: flex;
+        align-items: center;
+      }
+      .bold.full .textbox {
+        width: 1168px;
+      }
+      .bold .headline {
+        width: 100%;
+        max-height: 100%;
+      }
+      .bold .visual {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 540px;
+        height: 720px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+      }
+      .bold .visual img.photo {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        object-position: bottom center;
+        filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.35));
+      }
+      .bold .visual .ghost {
+        width: 430px;
+        margin-bottom: 30px;
+      }
+      .bold .sticker {
+        left: 62px;
+        top: 132px;
+      }
+      .bold.has-sticker .textbox {
+        top: 210px;
+        height: 450px;
+      }
+      /* ---------- versus ---------- */
+      .versus .textbox {
+        position: absolute;
+        left: 140px;
+        right: 56px;
+        top: 34px;
+        height: 170px;
+        display: flex;
+        align-items: center;
+      }
+      .versus .headline {
+        width: 100%;
+        max-height: 100%;
+      }
+      .versus .panels {
+        position: absolute;
+        left: 56px;
+        right: 56px;
+        top: 228px;
+        bottom: 56px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 48px;
+      }
+      .panel {
+        position: relative;
+        background: var(--card);
+        border: 4px solid var(--hair);
+        border-radius: 28px;
+        padding: 28px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        overflow: hidden;
+      }
+      .panel.wrong {
+        border-color: var(--bad);
+      }
+      .panel.right {
+        border-color: var(--good);
+      }
+      .panel .label {
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-weight: 700;
+        font-size: 30px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .panel .lines {
+        flex: 1;
+        justify-content: center;
+        font-size: var(--lines-size, 56px);
+        font-weight: 700;
+        line-height: 1.15;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .mark {
+        position: absolute;
+        width: 92px;
+        height: 92px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-weight: 900;
+        font-size: 58px;
+        line-height: 1;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+        z-index: 2;
+      }
+      .mark.wrong {
+        background: var(--bad);
+      }
+      .mark.right {
+        background: var(--good);
+      }
+      .panel .mark {
+        right: 22px;
+        top: 22px;
+        width: 76px;
+        height: 76px;
+        font-size: 46px;
+      }
+      .vs {
+        position: absolute;
+        left: 50%;
+        top: calc(228px + (720px - 228px - 56px) / 2);
+        transform: translate(-50%, -50%) rotate(-6deg);
+        background: var(--accent);
+        color: var(--second);
+        font-weight: 900;
+        font-size: 44px;
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        z-index: 3;
+        box-shadow: 0 8px 0 color-mix(in srgb, var(--accent) 55%, var(--second));
+      }
+      /* ---------- chat ---------- */
+      .chat .window {
+        position: absolute;
+        left: 56px;
+        top: 128px;
+        width: 760px;
+        bottom: 48px;
+        background: var(--card);
+        border: 4px solid var(--hair);
+        border-radius: 30px;
+        padding: 30px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 26px;
+        overflow: hidden;
+        box-shadow: 0 24px 50px -20px rgba(0, 0, 0, 0.5);
+      }
+      .bubble {
+        position: relative;
+        max-width: 88%;
+        font-size: var(--bubble-size, 44px);
+        font-weight: 650;
+        line-height: 1.18;
+        padding: 22px 28px;
+        border-radius: 26px;
+      }
+      .bubble.user {
+        align-self: flex-end;
+        background: var(--main);
+        color: #fff;
+        border-bottom-right-radius: 8px;
+      }
+      .bubble.ai {
+        align-self: flex-start;
+        background: color-mix(in srgb, var(--ink) 10%, var(--card));
+        border: 3px solid var(--hair);
+        border-bottom-left-radius: 8px;
+      }
+      .bubble.wrong {
+        border: 5px solid var(--bad);
+      }
+      .bubble.right {
+        border: 5px solid var(--good);
+      }
+      .bubble .mark {
+        right: -34px;
+        top: -34px;
+        width: 76px;
+        height: 76px;
+        font-size: 46px;
+      }
+      .chat .textbox {
+        position: absolute;
+        left: 850px;
+        right: 44px;
+        top: 60px;
+        height: 330px;
+        display: flex;
+        align-items: center;
+      }
+      .chat .headline {
+        width: 100%;
+        max-height: 100%;
+      }
+      .chat .visual {
+        position: absolute;
+        left: 860px;
+        right: 40px;
+        bottom: 60px;
+        height: 290px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+      }
+      .chat .visual .ghost {
+        height: 100%;
+      }
+      .chat .sticker {
+        left: 70px;
+        top: 52px;
+        transform: rotate(-3deg);
+      }
+      .chat.has-logo .sticker {
+        left: 130px;
+      }
+      /* ---------- full-bleed picture: a scene (scenes.js) or the photo ---------- */
+      #stage {
+        --sc-line: var(--second);
+        --sc-lw: 5px;
+        --sc-ink: var(--second);
+        --sc-ghost: #fff;
+        --sc-screen: var(--second);
+        --sc-wall: color-mix(in srgb, var(--ground) 86%, var(--main));
+        --sc-floor: color-mix(in srgb, var(--ground) 62%, var(--main));
+      }
+      #stage.paint {
+        --sc-line: #111;
+        --sc-lw: 8px;
+        --sc-ink: #111;
+        --sc-wall: var(--ground);
+        --sc-floor: color-mix(in srgb, var(--ground) 80%, #c3c3c3);
+      }
+      .pic {
+        position: absolute;
+        inset: 0;
+      }
+      .pic svg.scene {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #stage.paint .pic svg.scene {
+        filter: url(#wobble);
+      }
+      .pic img.photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .pic.shade::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(rgba(0, 0, 0, 0.55), transparent 45%);
+      }
+      #stage.question .headline,
+      #stage.title .headline,
+      #stage.mood .headline {
+        color: #fff;
+        text-shadow: none;
+        white-space: pre-line;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+      }
+      #stage.question .headline .hl,
+      #stage.title .headline .hl,
+      #stage.mood .headline .hl {
+        background: none;
+        color: var(--marker, var(--accent));
+        padding: 0;
+        margin: 0;
+      }
+      /* question: one huge outlined question across the top, the picture under it */
+      .question .textbox {
+        position: absolute;
+        z-index: 2;
+        left: 40px;
+        right: 40px;
+        top: 16px;
+        height: 210px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #stage.question .headline {
+        width: 100%;
+        max-height: 100%;
+        text-align: center;
+        font-family: 'Anton', 'Inter', sans-serif;
+        line-height: 1;
+        -webkit-text-stroke: 0.06em #000;
+        paint-order: stroke fill;
+        text-shadow: 0 0.055em 0 #000;
+      }
+      /* title: a documentary title, stacked condensed words on the left, a small tag under it */
+      .title .textbox {
+        position: absolute;
+        z-index: 2;
+        left: 64px;
+        top: 36px;
+        width: 620px;
+        height: 560px;
+        display: flex;
+        align-items: flex-start;
+      }
+      #stage.title .headline {
+        width: 100%;
+        max-height: 100%;
+        font-family: 'Oswald', 'Inter', sans-serif;
+        font-weight: 700;
+        text-transform: uppercase;
+        line-height: 0.92;
+        text-shadow: 0 4px 22px rgba(0, 0, 0, 0.55);
+      }
+      .title .tag {
+        position: absolute;
+        z-index: 2;
+        left: 70px;
+        bottom: 40px;
+        font-family: 'Oswald', 'Inter', sans-serif;
+        font-weight: 500;
+        font-size: 40px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--marker, var(--accent));
+        white-space: nowrap;
+      }
+      /* mood: one short condensed question, top-left, over a moody picture */
+      .mood .textbox {
+        position: absolute;
+        z-index: 2;
+        left: 56px;
+        top: 26px;
+        width: 880px;
+        height: 200px;
+        display: flex;
+        align-items: flex-start;
+      }
+      #stage.mood .headline {
+        max-width: 100%;
+        max-height: 100%;
+        font-family: 'Oswald', 'Inter', sans-serif;
+        font-weight: 700;
+        text-transform: uppercase;
+        line-height: 1;
+        text-shadow: 0 6px 26px rgba(0, 0, 0, 0.85);
+      }
+      /* card: a white question card, top-left, next to the character */
+      .card .textbox {
+        position: absolute;
+        z-index: 2;
+        left: 48px;
+        top: 48px;
+        width: 680px;
+        height: 430px;
+        padding: 28px 40px 34px;
+        display: flex;
+        align-items: center;
+        background: #fff;
+        border: 6px solid #111;
+        border-radius: 34px;
+        box-shadow: 0 14px 0 #111;
+      }
+      #stage.card .headline {
+        width: 100%;
+        max-height: 100%;
+        font-family: 'Inter', sans-serif;
+        font-weight: 900;
+        color: #111;
+        line-height: 1.08;
+        white-space: pre-line;
+        text-shadow: none;
+        letter-spacing: -0.02em;
+      }
+      #stage.card .headline .hl {
+        background: var(--accent);
+        color: var(--second);
+        padding: 0 0.12em;
+        border-radius: 0.1em;
+      }
+      #stage.paint.card .headline .hl {
+        color: #fff;
+      }
+      /* the logo moves out of the headline's corner */
+      .question .logo,
+      .mood .logo,
+      .card .logo {
+        top: auto;
+        bottom: 40px;
+      }
+      .title .logo {
+        left: auto;
+        right: 44px;
+      }
+      .card.no-pic {
+        background: color-mix(in srgb, var(--ground) 88%, var(--main));
+      }
+      .card .visual {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 520px;
+        height: 720px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+      }
+      .card .visual .ghost {
+        width: 420px;
+        margin-bottom: 30px;
+      }
+      .card .visual img.photo {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+      .question .sticker,
+      .title .sticker,
+      .mood .sticker,
+      .card .sticker {
+        right: 60px;
+        top: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute">
+      <filter id="wobble" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="2" seed="7" />
+        <feDisplacementMap in="SourceGraphic" scale="9" />
+      </filter>
+    </svg>
+    <div id="stage"></div>
+    <script>
+      /*DOODLES*/
+    </script>
+    <script>
+      /*SCENES*/
+    </script>
+    <script>
+      window.V = /*VARIANT*/ null
+      window.LOGO = '__LOGO__'
+      window.PHOTO = '__PHOTO__'
+    </script>
+    <script>
+      ;(function () {
+        const V = window.V || {}
+        const stage = document.getElementById('stage')
+        const layout = V.layout || 'bold'
+        stage.className = layout + (V.theme === 'light' ? ' light' : '') + (V.paint ? ' paint' : '')
+        const esc = (s) =>
+          String(s ?? '').replace(
+            /[&<>"]/g,
+            (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]
+          )
+        const hasLogo = V.logo !== false && window.LOGO && window.LOGO !== '__LOGO__'
+        const hasPhoto = !!(window.PHOTO && window.PHOTO !== '__PHOTO__')
+        if (hasLogo) {
+          stage.classList.add('has-logo')
+          const img = document.createElement('img')
+          img.className = 'logo'
+          img.src = window.LOGO
+          stage.appendChild(img)
+        }
+
+        // ---------- the ghost mascot (static poses) ----------
+        const ghost = (pose) => {
+          // arm path points up-left from the shoulder; rotate() swings it
+          const arm = 'M0 0 C-24 -2 -44 -18 -48 -40 C-30 -32 -12 -28 6 -24 Z'
+          const armR = 'M0 0 C24 -2 44 -18 48 -40 C30 -32 12 -28 -6 -24 Z'
+          const ang = { neutral: [-80, 80], shrug: [-18, 18], shock: [22, -22], wave: [-80, 40] }[
+            pose
+          ] || [-80, 80]
+          const st =
+            'fill:var(--ghost);stroke:var(--ghost-line);stroke-width:4;stroke-linejoin:round'
+          const eyeRy = pose === 'shock' ? 19 : 15
+          const mouth =
+            pose === 'shock'
+              ? '<ellipse cx="0" cy="-94" rx="11" ry="15" style="fill:var(--second)"/>'
+              : pose === 'shrug'
+                ? '<path d="M-16 -98 Q-6 -104 2 -98 T18 -98" style="fill:none;stroke:var(--second);stroke-width:5.5;stroke-linecap:round"/>'
+                : '<path d="M-17 -104 Q0 -84 17 -104" style="fill:none;stroke:var(--second);stroke-width:5.5;stroke-linecap:round"/>'
+          const extra =
+            pose === 'shrug'
+              ? '<text x="70" y="-196" style="font:900 72px Inter, sans-serif;fill:var(--accent)">?</text>'
+              : pose === 'shock'
+                ? '<path d="M-96 -214 l-18 -22 M0 -236 v-26 M96 -214 l18 -22" style="stroke:var(--accent);stroke-width:8;stroke-linecap:round"/>'
+                : ''
+          return (
+            '<svg class="ghost" viewBox="-130 -270 260 292">' +
+            '<ellipse cx="0" cy="14" rx="62" ry="9" style="fill:rgba(0,0,0,.22)"/>' +
+            '<g transform="translate(-74 -70) rotate(' +
+            ang[0] +
+            ')"><path d="' +
+            arm +
+            '" style="' +
+            st +
+            '"/></g>' +
+            '<g transform="translate(74 -70) rotate(' +
+            ang[1] +
+            ')"><path d="' +
+            armR +
+            '" style="' +
+            st +
+            '"/></g>' +
+            '<path d="M-80 0 V-132 A80 80 0 0 1 80 -132 V0 q-13.3 -18 -26.7 0 q-13.3 18 -26.7 0 q-13.3 -18 -26.7 0 q-13.3 18 -26.7 0 q-13.3 -18 -26.7 0 q-13.3 18 -26.7 0 Z" style="' +
+            st +
+            '"/>' +
+            '<ellipse cx="-46" cy="-104" rx="13" ry="7" style="fill:var(--accent);opacity:.5"/><ellipse cx="46" cy="-104" rx="13" ry="7" style="fill:var(--accent);opacity:.5"/>' +
+            '<ellipse cx="-26" cy="-136" rx="10" ry="' +
+            eyeRy +
+            '" style="fill:var(--second)"/><ellipse cx="26" cy="-136" rx="10" ry="' +
+            eyeRy +
+            '" style="fill:var(--second)"/>' +
+            '<circle cx="-22" cy="-142" r="3.6" style="fill:#fff"/><circle cx="30" cy="-142" r="3.6" style="fill:#fff"/>' +
+            mouth +
+            extra +
+            '</svg>'
+          )
+        }
+
+        // ---------- headline with one highlighted substring ----------
+        const text = String(V.text || '').trim()
+        const headline = (box) => {
+          const h = document.createElement('h1')
+          h.className = 'headline'
+          const hs = V.highlight ? text.indexOf(V.highlight) : -1
+          h.innerHTML =
+            hs < 0
+              ? esc(text)
+              : esc(text.slice(0, hs)) +
+                '<span class="hl">' +
+                esc(V.highlight) +
+                '</span>' +
+                esc(text.slice(hs + V.highlight.length))
+          box.appendChild(h)
+          return h
+        }
+        const div = (cls, parent = stage) => {
+          const d = document.createElement('div')
+          d.className = cls
+          parent.appendChild(d)
+          return d
+        }
+        const markEl = (m) =>
+          m === 'wrong' || m === 'right'
+            ? '<div class="mark ' + m + '">' + (m === 'wrong' ? '✕' : '✓') + '</div>'
+            : ''
+
+        let h1 = null
+        const fits = [] // elements that must not overflow
+        const FEED = ['question', 'title', 'mood', 'card']
+        if (FEED.includes(layout)) {
+          // the picture: the photo, or a scene (V.scene: { bg, cast, props } as on a scene slide).
+          // question / title / mood always have one (white text needs a picture behind it);
+          // card without a scene puts the photo, doodle or mascot on the right instead.
+          const pictured = layout !== 'card' || V.scene
+          if (pictured) {
+            const pic = div('pic' + (layout === 'card' ? '' : ' shade'))
+            if (hasPhoto && !V.scene)
+              pic.innerHTML = '<img class="photo" src="' + window.PHOTO + '">'
+            else if (window.scene) {
+              const fallback = {
+                bg: 'night',
+                cast: [
+                  V.paint
+                    ? 'robot:neutral'
+                    : 'ghost:' + (V.mascot && V.mascot !== 'none' ? V.mascot : 'neutral')
+                ]
+              }
+              const S = { ...(V.scene || fallback) }
+              // a lone character is the thumbnail's subject: draw it bigger than on a slide
+              const cast = (Array.isArray(S.cast) ? S.cast : S.cast ? [S.cast] : []).map((m) =>
+                typeof m === 'string' ? { who: m.split(':')[0], pose: m.split(':')[1] } : m
+              )
+              const boost = { question: 1.45, title: 1.4, mood: 1.5, card: 1.35 }[layout]
+              if (cast.length === 1) S.cast = [{ ...cast[0], size: cast[0].size ?? boost }]
+              const sc = window.scene(S, { textMode: layout === 'question' ? 'top' : 'left' })
+              pic.innerHTML = sc.svg
+            }
+          } else {
+            stage.classList.add('no-pic')
+            const pose = V.mascot || (hasPhoto ? 'none' : 'neutral')
+            const v = div('visual')
+            v.innerHTML = hasPhoto
+              ? '<img class="photo" src="' + window.PHOTO + '">'
+              : V.doodle && window.doodle
+                ? window.doodle(V.doodle)
+                : pose !== 'none'
+                  ? ghost(pose)
+                  : ''
+          }
+          h1 = headline(div('textbox'))
+          if (layout === 'title' && V.tag) div('tag').textContent = V.tag
+        } else if (layout === 'versus') {
+          h1 = headline(div('textbox'))
+          const panels = div('panels')
+          for (const side of ['left', 'right']) {
+            const p = V[side] || {}
+            const d = div('panel ' + (p.mark || ''), panels)
+            d.innerHTML =
+              (p.label ? '<div class="label">' + esc(p.label) + '</div>' : '') +
+              '<div class="lines">' +
+              (p.lines || []).map((l) => '<div>' + esc(l) + '</div>').join('') +
+              '</div>' +
+              markEl(p.mark)
+            fits.push(d)
+          }
+          const most = Math.max(
+            0,
+            ...['left', 'right'].flatMap((k) => (V[k]?.lines || []).map((l) => String(l).length))
+          )
+          panels.style.setProperty('--lines-size', (most > 22 ? 44 : most > 16 ? 50 : 56) + 'px')
+          div('vs').textContent = V.vsText || 'VS'
+        } else if (layout === 'chat') {
+          const win = div('window')
+          const bubbles = (V.chat || []).slice(0, 3)
+          const longest = Math.max(0, ...bubbles.map((b) => String(b.text || '').length))
+          win.style.setProperty(
+            '--bubble-size',
+            (longest > 50 ? 42 : longest > 32 ? 48 : 54) + 'px'
+          )
+          for (const b of bubbles) {
+            const d = div(
+              'bubble ' + (b.role === 'user' ? 'user' : 'ai') + ' ' + (b.mark || ''),
+              win
+            )
+            d.innerHTML = esc(b.text) + markEl(b.mark)
+          }
+          fits.push(win)
+          if (text) h1 = headline(div('textbox'))
+          const pose = V.mascot || 'neutral'
+          if (V.doodle && window.doodle) div('visual').innerHTML = window.doodle(V.doodle)
+          else if (pose !== 'none') div('visual').innerHTML = ghost(pose)
+        } else {
+          const pose = V.mascot || (hasPhoto ? 'none' : 'neutral')
+          const dood = !hasPhoto && V.doodle && window.doodle
+          const visual = hasPhoto || dood || pose !== 'none'
+          if (!visual) stage.classList.add('full')
+          h1 = headline(div('textbox'))
+          if (visual) {
+            const v = div('visual')
+            v.innerHTML = hasPhoto
+              ? '<img class="photo" src="' + window.PHOTO + '">'
+              : dood
+                ? window.doodle(V.doodle)
+                : ghost(pose)
+          }
+        }
+        if (V.sticker) {
+          stage.classList.add('has-sticker')
+          div('sticker').textContent = V.sticker
+        }
+
+        // ---------- fit the headline: largest size that fits its box ----------
+        const fitsBox = (el) =>
+          el.scrollWidth <= el.clientWidth + 1 &&
+          el.scrollHeight <= el.parentElement.clientHeight + 1
+        if (h1) {
+          const start = { question: 200, title: 240, mood: 160, card: 104 }[layout] || 168
+          let size = V.textSize || start
+          const min = layout === 'card' ? 56 : 84
+          h1.style.fontSize = size + 'px'
+          while (size > min && !fitsBox(h1)) {
+            size -= 4
+            h1.style.fontSize = size + 'px'
+          }
+          window.TEXT_SIZE = size
+          // the card hugs its text once the size is set
+          if (layout === 'card') h1.parentElement.style.height = 'auto'
+        }
+
+        window.check = function () {
+          const issues = []
+          const warnings = []
+          const words = text.split(/\s+/).filter((w) => /\w/.test(w)).length
+          if (words > 5) issues.push('headline has ' + words + ' words (max 5, aim for ≤ 4)')
+          else if (words > 4) warnings.push('headline has 5 words; 4 or fewer reads better')
+          if (V.highlight && text.indexOf(V.highlight) < 0)
+            issues.push('highlight "' + V.highlight + '" is not in the text')
+          if (h1 && !fitsBox(h1))
+            issues.push(
+              'headline does not fit even at ' + (layout === 'card' ? 56 : 84) + 'px: shorten it'
+            )
+          if (V.tag && V.tag.length > 24) warnings.push('tag is over 24 characters')
+          for (const el of fits)
+            if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2)
+              issues.push('a ' + el.className.split(' ')[0] + ' overflows: shorten its text')
+          if (V.sticker && V.sticker.length > 14) warnings.push('sticker is over 14 characters')
+          // YouTube draws the video length in the bottom-right corner
+          const zone = { l: 1110, t: 640 }
+          stage
+            .querySelectorAll('.headline, .sticker, .tag, .bubble, .panel .lines > div')
+            .forEach((el) => {
+              const r = el.getBoundingClientRect()
+              if (r.right > zone.l && r.bottom > zone.t)
+                warnings.push(
+                  'text reaches the bottom-right corner, where YouTube shows the duration'
+                )
+            })
+          return {
+            issues,
+            warnings: [...new Set(warnings)],
+            textSize: window.TEXT_SIZE || null,
+            words
+          }
+        }
+      })()
+    </script>
+  </body>
+</html>
