@@ -3,19 +3,23 @@
 //
 //   node render-video.mjs <$W> [--slides] [--preview s012,s020] [--voice af_heart] [--speed 0.92] [--pace 1-5]
 //                             [--anim auto|off] [--gap 0.1] [--section-gap 0.3] [--max-pause 0.2] [--beat 0.6]
-//                             [--out <file.mp4>]
+//                             [--expressive 1] [--out <file.mp4>]
 //
 //   --slides   only render the slide PNGs + $W/video/sheet.png (no voice, no MP4): fast layout check
 //   --preview  like --slides, plus a short MP4 of each named slide as it will move ($W/video/preview-<id>.mp4)
 //   --anim     animations: "auto" animates every slide where it suits (entrances, count-ups, drawn doodles,
 //              acting characters); "off" = still slides. Default: style.json "animate", else off
+//   --camera   with animations: a camera move with parallax on scene and illustration slides (auto, drift, push,
+//              pull, pan-left, pan-right, rise, sink, off). Default: style.json "camera", else off; a cue's own wins
 //   default    voice for every slide (cached; only changed lines are re-spoken), then
 //              $W/out/video.mp4 (1920×1080, 30 fps, H.264 + AAC), $W/out/video.srt, $W/out/chapters.txt (real times)
 //
 // Look, pace and voice come from $W/style.json (see style.mjs); flags override it. Pace 1–2 = hard cuts on still
 // slides; 3–5 = slow push-ins and crossfades, shorter slides (profile below; spec: ../references/video-playbook.md).
 // Slides come from `> SLIDE {json}` cues in $W/script.md: each cue starts a slide, and the spoken lines after it
-// (until the next cue) are that slide's voiceover.
+// (until the next cue) are that slide's voiceover. `> TONE <name>` right before a spoken line sets how that line is
+// delivered (suspense, surprise, …; tones.mjs): a held pause before it, its own speed and pauses, and for paid
+// voices the acting itself. style.json "expressive" (or --expressive) scales it; 0 = one flat tone.
 // Exit code 2 = a slide overflows or runs too long for the pace, a spoken line has no slide, or the script is malformed.
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -33,7 +37,9 @@ import {
   skill,
   themeWarnings
 } from './style.mjs'
-import { langFor, speak } from './tts-setup.mjs'
+import { NARRATOR, TONE_NAMES, delivery, parseTone } from './tones.mjs'
+import { langFor, providerOf, speak } from './tts-setup.mjs'
+import { defaultSpeed, voiceWpm } from './voices.mjs'
 
 const args = process.argv.slice(2)
 const stop = (m, code = 1) => {
@@ -63,7 +69,9 @@ const preview = new Set(
 )
 const onlySlides = args.includes('--slides') || preview.size > 0
 const VOICE = flag('--voice', style.voice || 'af_heart')
-const SPEED = Number(flag('--speed', String(style.speed ?? 0.92)))
+// Kokoro reads at 0.92, cloud voices at 1.1 by default (voices.mjs), so both land near the same pace
+const SPEED = Number(flag('--speed', String(style.speed ?? defaultSpeed(VOICE))))
+const RATE_EST = voiceWpm(VOICE, SPEED)
 // silence after each slide's voice, and extra at a section change: short, so the voiceover keeps going
 const GAP = Number(flag('--gap', String(style.gap ?? 0.1)))
 const SECTION_GAP = Number(flag('--section-gap', String(style.sectionGap ?? 0.3)))
@@ -77,7 +85,9 @@ const BEAT = Math.max(
   0,
   Number(flag('--beat', String(style.beat ?? Math.round(MAX_PAUSE * 300) / 100)))
 )
-const LANG = flag('--lang', langFor(VOICE))
+// how much the `> TONE` cues change the delivery: 0 = off (one tone), 1 = default, 1.5 = more dramatic
+const EXPRESSIVE = Math.max(0, Number(flag('--expressive', String(style.expressive ?? 1))))
+const LANG = flag('--lang', langFor(VOICE, style.language))
 // style.json "language" (asked before the script) and the voice must agree: an English voice can't read Spanish
 if (style.language && !LANG.startsWith(style.language)) {
   console.error(
@@ -109,6 +119,15 @@ const FPS = 30
 const ANIM = /^(auto|on|true)$/.test(String(flag('--anim', String(style.animate ?? 'off'))))
 const STILL = ['subscribe', 'end']
 const animated = (s) => ANIM && s.animate !== false && !STILL.includes(s.layout)
+// camera: one slow move with parallax over the whole slide on scene and illustration slides (slide.html ›
+// camera). A cue's "camera" wins; else style.json "camera" ("auto" = a drift on illustrations and layered
+// scenes; a move name applies it to every scene and illustration); else none. Only with animations on.
+const CAMERA = flag('--camera', style.camera ?? 'off')
+const cameraFor = (s) => {
+  if (!animated(s)) return undefined
+  const c = s.camera ?? (['scene', 'illustration', 'flow'].includes(s.layout) ? CAMERA : 'off')
+  return c === 'off' || c === 'none' || c === false ? undefined : c
+}
 
 const vdir = join(W, 'video')
 mkdirSync(join(vdir, 'slides'), { recursive: true })
@@ -120,12 +139,16 @@ let sec = null
 let slide = null
 const cues = []
 const problems = []
+// a `> TONE <name>` cue waits for the next spoken line
+let tone = null
 readFileSync(join(W, 'script.md'), 'utf8')
   .split('\n')
   .forEach((raw, ln) => {
     const line = raw.trim()
     const h = line.match(/^##\s*\[([A-Z ]+?)(?:\s+(\d+))?\]\s*(.*)$/)
     if (h) {
+      if (tone) problems.push(`line ${tone.ln}: TONE must come right before a spoken line`)
+      tone = null
       sec = { tag: h[1].trim(), n: h[2] ? Number(h[2]) : null, title: h[3].trim() }
       sections.push(sec)
       slide = null
@@ -136,6 +159,15 @@ readFileSync(join(W, 'script.md'), 'utf8')
       if (/^>\s*BEAT\s*$/i.test(line)) {
         if (slide?.say.length) (slide.beats ??= []).push(slide.say.length - 1)
         else problems.push(`line ${ln + 1}: BEAT must come right after a spoken line`)
+        return
+      }
+      const tn = parseTone(line)
+      if (tn !== null) {
+        if (!tn)
+          problems.push(
+            `line ${ln + 1}: unknown TONE (${line.replace(/^>\s*TONE\s*:?\s*/i, '') || 'none given'}); use one of ${TONE_NAMES.join(', ')}`
+          )
+        else tone = { name: tn, ln: ln + 1 }
         return
       }
       const m = line.match(/^>\s*SLIDE\s+(\{.*\})\s*$/)
@@ -150,21 +182,44 @@ readFileSync(join(W, 'script.md'), 'utf8')
       return
     }
     if (!slide) problems.push(`line ${ln + 1}: spoken text in [${sec.tag}] before any SLIDE cue`)
-    else slide.say.push(line)
+    else {
+      if (tone) (slide.tones ??= {})[slide.say.length] = tone.name
+      slide.say.push(line)
+    }
+    tone = null
   })
+if (tone) problems.push(`line ${tone.ln}: TONE must come right before a spoken line`)
 if (!cues.length) problems.push('no `> SLIDE {…}` cues in script.md')
 
-// `points` with reveal: one slide per point, spoken line i with point i
+// `points` (or a `flow`'s nodes) with reveal: one slide per point, spoken line i with point i
 const slides = []
 for (const c of cues) {
-  if (c.layout !== 'points' || !c.reveal) {
+  if (!['points', 'flow'].includes(c.layout) || !c.reveal) {
     slides.push(c)
     continue
   }
-  const pts = c.points || []
+  const flow = c.layout === 'flow'
+  const pts = (flow ? c.nodes : c.points) || []
   if (c.say.length !== pts.length) {
     problems.push(
-      `line ${c.line}: reveal needs one spoken line per point (${pts.length} points, ${c.say.length} lines); put each point's voiceover on its own line`
+      `line ${c.line}: reveal needs one spoken line per ${flow ? 'node' : 'point'} (${pts.length} ${flow ? 'nodes' : 'points'}, ${c.say.length} lines); put each one's voiceover on its own line`
+    )
+    continue
+  }
+  // a flow grows one box at a time (the newest highlighted); "one" only applies to points
+  if (flow) {
+    pts.forEach((p, i) =>
+      slides.push({
+        ...c,
+        sec: c.sec,
+        line: c.line,
+        say: [c.say[i]],
+        beats: c.beats?.includes(i) ? [0] : [],
+        tones: c.tones?.[i] ? { 0: c.tones[i] } : undefined,
+        reveal: undefined,
+        visible: i + 1,
+        current: i
+      })
     )
     continue
   }
@@ -174,7 +229,8 @@ for (const c of cues) {
       line: c.line,
       say: [c.say[i]],
       highlight: c.highlight,
-      beats: c.beats?.includes(i) ? [0] : []
+      beats: c.beats?.includes(i) ? [0] : [],
+      tones: c.tones?.[i] ? { 0: c.tones[i] } : undefined
     }
     if (c.reveal === 'one')
       slides.push({
@@ -195,18 +251,41 @@ if (problems.length) {
 
 // chapter cards before each idea (silent), labels for the chrome
 const ideas = sections.filter((s) => s.tag === 'IDEA')
+// labels for the chrome, in the video's language
+const T = {
+  en: {
+    intro: 'Intro',
+    half: 'Halfway',
+    summary: 'Summary',
+    chapter: 'Chapter',
+    idea: 'Idea',
+    of: 'of',
+    subscribe: 'Subscribe',
+    subscribed: 'Subscribed'
+  },
+  es: {
+    intro: 'Introducción',
+    half: 'A mitad',
+    summary: 'Resumen',
+    chapter: 'Capítulo',
+    idea: 'Idea',
+    of: 'de',
+    subscribe: 'Suscribirme',
+    subscribed: 'Suscrito'
+  }
+}[style.language === 'es' ? 'es' : 'en']
 const label = (s) =>
   ({
     HOOK: '',
-    INTRO: 'Intro',
-    'MID HOOK': 'Halfway',
-    SUMMARY: 'Summary',
+    INTRO: T.intro,
+    'MID HOOK': T.half,
+    SUMMARY: T.summary,
     OUTRO: ''
   })[s.tag] ??
   (s.tag === 'IDEA'
     ? style.story
       ? s.title
-      : `Idea ${s.n} of ${ideas.length} · ${s.title}`
+      : `${T.idea} ${s.n} ${T.of} ${ideas.length} · ${s.title}`
     : s.tag)
 const all = []
 let lastSec = null
@@ -214,7 +293,9 @@ for (const s of slides) {
   if (s.sec !== lastSec && s.sec.tag === 'IDEA')
     all.push({
       layout: 'chapter',
-      eyebrow: style.story ? `Chapter ${s.sec.n}` : `Idea ${s.sec.n} of ${ideas.length}`,
+      eyebrow: style.story
+        ? `${T.chapter} ${s.sec.n}`
+        : `${T.idea} ${s.sec.n} ${T.of} ${ideas.length}`,
       text: s.sec.title,
       say: [],
       hold: 2.2,
@@ -225,30 +306,56 @@ for (const s of slides) {
   lastSec = s.sec
 }
 all.forEach((s, i) => (s.id = 's' + String(i + 1).padStart(3, '0')))
+// the Subscribe pill and the "n of N" counter speak the video's language unless the cue sets them
+all.forEach((s) => {
+  if (s.layout === 'subscribe') {
+    s.button ??= T.subscribe
+    s.done ??= T.subscribed
+  }
+  if (s.layout === 'point') s.ofWord ??= T.of
+})
 // beats: every section but the outro ends on one (its conclusion, the hook's promise, the mid hook's tease)
 for (const sc of sections) {
   const last = all.findLast((s) => s.sec === sc && s.say.length)
   if (last && sc.tag !== 'OUTRO') last.beats = [...(last.beats || []), last.say.length - 1]
 }
-// a beat inside a slide's voice splits it into takes (each spoken on its own), joined by BEAT of silence;
-// a beat on its last line lengthens the pause after the slide instead
-all.forEach((s) => {
+// a slide's voice is spoken in takes: a beat or a change of tone inside it splits it, and each take is spoken
+// on its own (in its tone). `gap` = the silence before a take: the beat, or the tone's held breath before it
+// (on a slide's first take, only what the pause after the previous slide doesn't already give).
+// A beat on a slide's last line lengthens the pause after the slide instead.
+const toneOf = (s, i) => (EXPRESSIVE > 0 ? s.tones?.[i] || null : null)
+all.forEach((s, si) => {
   const beats = BEAT > 0 ? s.beats || [] : []
   const parts = []
-  let cur = []
+  let cur = null
   s.say.forEach((l, i) => {
-    cur.push(l)
-    if (i < s.say.length - 1 && beats.includes(i)) {
+    const tn = toneOf(s, i)
+    if (!cur || beats.includes(i - 1) || tn !== cur.tone) {
+      cur = { lines: [], tone: tn, beat: i > 0 && beats.includes(i - 1) }
       parts.push(cur)
-      cur = []
+    }
+    cur.lines.push(l)
+  })
+  s.beatEnd = s.say.length > 0 && beats.includes(s.say.length - 1)
+  const prev = all[si - 1]
+  const prevPad = !prev?.say.length
+    ? GAP
+    : prev.beatEnd
+      ? BEAT
+      : GAP + (prev.sec !== s.sec ? SECTION_GAP : 0)
+  s.takes = parts.map((p, k) => {
+    const d = p.tone ? delivery(p.tone, { scale: EXPRESSIVE, maxPause: MAX_PAUSE }) : null
+    const before = d?.before || 0
+    // the video never opens on silence: the first slide's first take starts at once
+    const gap =
+      k === 0 ? (si === 0 ? 0 : Math.max(0, before - prevPad)) : Math.max(p.beat ? BEAT : 0, before)
+    return {
+      id: parts.length === 1 ? s.id : `${s.id}-${k + 1}`,
+      text: p.lines.join(' '),
+      tone: p.tone,
+      gap: Math.round(gap * 1000) / 1000
     }
   })
-  if (cur.length) parts.push(cur)
-  s.beatEnd = s.say.length > 0 && beats.includes(s.say.length - 1)
-  s.takes = parts.map((p, k) => ({
-    id: parts.length === 1 ? s.id : `${s.id}-${k + 1}`,
-    text: p.join(' ')
-  }))
 })
 // a slide that continues the previous one (same layout and title/text, e.g. a list stepping `current`) only
 // animates what changed
@@ -288,10 +395,49 @@ try {
 // ---------- voice ----------
 const words = (s) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length
 const durations = {}
+// tones: the timing for every voice; the acting for the paid ones (OpenAI follows instructions per line,
+// ElevenLabs gets expressive settings and, on eleven_v3, an audio tag)
+const PROVIDER = providerOf(VOICE)
+// OpenAI voices: style.json voiceModel, else the config's models.speech (providers.mjs --check tests that one)
+const MODEL = style.voiceModel || (PROVIDER === 'openai' ? style.config.models?.speech || '' : '')
+const BASE_INSTRUCTIONS =
+  style.voiceInstructions ||
+  (PROVIDER === 'openai' && EXPRESSIVE > 0 ? NARRATOR[style.language === 'es' ? 'es' : 'en'] : '')
+const toneCount = {}
+for (const k of all.flatMap((s) => s.takes))
+  if (k.tone) toneCount[k.tone] = (toneCount[k.tone] || 0) + 1
+const toneLine = Object.entries(toneCount)
+  .map(([t, n]) => `${t} ${n}`)
+  .join(', ')
+if (EXPRESSIVE > 0 && !toneLine)
+  console.warn(
+    'warning: no `> TONE` cues: the whole voiceover is read in one tone (script playbook › Emotion and delivery)'
+  )
 if (!onlySlides) {
-  const lines = all.flatMap((s) => s.takes)
+  const lines = all.flatMap((s) =>
+    s.takes.map((k) => {
+      const d = k.tone ? delivery(k.tone, { scale: EXPRESSIVE, maxPause: MAX_PAUSE }) : null
+      if (!d) return { id: k.id, text: k.text }
+      const line = {
+        id: k.id,
+        text: k.text,
+        speed: Math.round(SPEED * d.speedFactor * 1000) / 1000,
+        maxPause: Math.round(d.maxPause * 1000) / 1000
+      }
+      if (PROVIDER === 'openai')
+        line.instructions = [BASE_INSTRUCTIONS, d.instructions].filter(Boolean).join(' ')
+      if (PROVIDER === 'elevenlabs') {
+        line.settings = d.settings
+        if (/^eleven_v3/.test(MODEL)) line.text = `${d.tag} ${k.text}`
+      }
+      return line
+    })
+  )
   console.log(
-    `voice: ${VOICE} at speed ${SPEED}, ${lines.length} lines, ${lines.reduce((a, l) => a + words(l.text), 0)} words`
+    `voice: ${VOICE} at speed ${SPEED}, ${lines.length} lines, ${lines.reduce((a, l) => a + words(l.text), 0)} words` +
+      (toneLine
+        ? `; tones: ${toneLine}${EXPRESSIVE !== 1 ? ` (expressive ${EXPRESSIVE})` : ''}`
+        : '')
   )
   Object.assign(
     durations,
@@ -299,19 +445,37 @@ if (!onlySlides) {
       voice: VOICE,
       speed: SPEED,
       lang: LANG,
-      maxPause: MAX_PAUSE
+      maxPause: MAX_PAUSE,
+      model: MODEL,
+      instructions: BASE_INSTRUCTIONS
     })
   )
-}
+  // the voice's real rate, to keep voices.mjs (and every estimate) honest
+  const spokenSecs = Object.values(durations).reduce((a, x) => a + x, 0)
+  const spokenWords = lines.reduce((a, l) => a + words(l.text), 0)
+  if (spokenSecs > 0) {
+    const real = Math.round(spokenWords / (spokenSecs / 60))
+    console.log(`voice: ${real} wpm as spoken (voices.mjs estimates ${RATE_EST})`)
+    if (Math.abs(real - RATE_EST) / RATE_EST > 0.1)
+      console.warn(
+        `warning: ${VOICE} reads ${Math.round((100 * (real - RATE_EST)) / RATE_EST)}% off the estimate: update RATES in scripts/voices.mjs so the checker times scripts right`
+      )
+  }
+} else if (toneLine) console.log(`tones: ${toneLine}`)
 
 // ---------- timeline ----------
 // The voice never waits for the pictures: between slides there is only GAP (a breath) and SECTION_GAP at a
 // section change, and a chapter card is shown over the opening of its idea's first line instead of in silence.
 // s.start/s.dur = when the slide is on screen; s.astart = when its voice starts (earlier than s.start only
 // for the slide right after a chapter card).
-const takeLen = (k) => (onlySlides ? (words(k.text) / 185) * 60 : durations[k.id] || 0)
-const voiceLen = (s) =>
-  s.takes.length ? s.takes.reduce((a, k) => a + takeLen(k), 0) + BEAT * (s.takes.length - 1) : 0
+// before the voice exists, estimate each take at the chosen voice's rate (voices.mjs)
+const RATE = RATE_EST
+// (a toned take at its own speed: suspense and serious lines are read slower)
+const toneSpeed = (k) =>
+  (k.tone && delivery(k.tone, { scale: EXPRESSIVE, maxPause: MAX_PAUSE })?.speedFactor) || 1
+const takeLen = (k) =>
+  onlySlides ? ((words(k.text) / RATE) * 60) / toneSpeed(k) : durations[k.id] || 0
+const voiceLen = (s) => s.takes.reduce((a, k) => a + k.gap + takeLen(k), 0)
 let t = 0
 all.forEach((s, i) => {
   const next = all[i + 1]
@@ -333,6 +497,26 @@ const total = t
 const fmt = (sec) => {
   sec = Math.round(sec)
   return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0')
+}
+
+// with the real voice every slide's length is known now: stop before filming the clips (minutes of work) when
+// a slide is far too long for the pace. The voice is cached, so the re-run after the fix buys nothing again.
+if (!onlySlides) {
+  const far = all.filter(
+    (s) =>
+      s.say.length && !['end', 'subscribe'].includes(s.layout) && PACE >= 3 && s.dur > P.max * 1.3
+  )
+  if (far.length) {
+    for (const s of far)
+      console.error(
+        `PROBLEM [${s.id}, script line ${s.line}, ${s.layout}] ${s.dur.toFixed(1)}s on screen with the real voice; pace ${PACE} wants ≤ ${P.max}s: add a SLIDE cue between its lines (no new words, nothing re-bought) or split a sentence`
+      )
+    await browser.close()
+    stop(
+      'fix the slides above and re-run: stopped before filming the clips; the voice is already cached.',
+      2
+    )
+  }
 }
 
 // frames: what is actually on screen. A subscribe slide is clicked over 3 frames (resting, cursor, subscribed),
@@ -378,16 +562,18 @@ const fadeOut = (i) => {
   if (P.punch && (P.punch.includes(a.s.layout) || P.punch.includes(b.s.layout))) return 0
   return P.fade
 }
-const plan = (i) => {
+// `filmed` = the slide's own camera moves it for the whole slot (slide.html), so no push-in on top
+const plan = (i, filmed = false) => {
   const fr = frames[i]
   const T = fadeOut(i)
   const n = Math.max(1, Math.round((fr.dur + T) * FPS))
   const punch = P.punch && P.punch.includes(fr.s.layout)
-  const z = pushes(fr.s)
-    ? punch
-      ? `1+${P.zoom * 1.6}*min(on/12\\,1)+${P.zoom * 0.4}*on/${n}`
-      : `1+${P.zoom}*on/${n}`
-    : '1'
+  const z =
+    !filmed && pushes(fr.s)
+      ? punch
+        ? `1+${P.zoom * 1.6}*min(on/12\\,1)+${P.zoom * 0.4}*on/${n}`
+        : `1+${P.zoom}*on/${n}`
+      : '1'
   const vf =
     z === '1'
       ? `scale=1920:1080,fps=${FPS},format=yuv420p,settb=AVTB`
@@ -453,8 +639,10 @@ async function animClip(fr, i, spec) {
   if (existsSync(file)) return file
   if (existsSync(none)) return null
   mkdirSync(clipsDir, { recursive: true })
-  let info = await page.evaluate(([S, fps]) => window.anim(S, { fps }), [spec, FPS])
-  if (!info.intro && !info.loop) {
+  // dur = the clip's length: the camera and particles (if any) run over all of it
+  const dur = n / FPS
+  let info = await page.evaluate(([S, fps, dur]) => window.anim(S, { fps, dur }), [spec, FPS, dur])
+  if (!info.intro && !info.loop && !info.full) {
     writeFileSync(none, '')
     return null
   }
@@ -462,16 +650,19 @@ async function animClip(fr, i, spec) {
   const room = fr.dur * 0.6
   if (info.intro > room)
     info = await page.evaluate(
-      ([S, fps, speed]) => window.anim(S, { fps, speed }),
-      [spec, FPS, info.intro / room]
+      ([S, fps, speed, dur]) => window.anim(S, { fps, speed, dur }),
+      [spec, FPS, info.intro / room, dur]
     )
   const intro = Math.round(info.intro * FPS)
   const L = info.loop && fr.dur > info.intro + 0.6 ? Math.round(info.loop * FPS) : 0
-  const count = Math.min(n, L ? intro + L : intro + 1)
-  const pre =
-    L && count === intro + L
+  // a moving camera or particles: film every frame of the slot (no held frame, no loop, no push-in on top)
+  const count = info.full ? n : Math.min(n, L ? intro + L : intro + 1)
+  const pre = info.full
+    ? ''
+    : L && count === intro + L
       ? `loop=loop=-1:size=${L}:start=${intro},`
       : 'tpad=stop_mode=clone:stop=-1,'
+  const filter = info.full ? plan(i, true).vf : vf
   const ffp = spawn(
     'ffmpeg',
     [
@@ -488,7 +679,7 @@ async function animClip(fr, i, spec) {
       '-i',
       '-',
       '-vf',
-      pre + vf,
+      pre + filter,
       '-frames:v',
       String(n),
       ...ENC,
@@ -528,7 +719,9 @@ for (const fr of frames) {
     beats: undefined,
     beatEnd: undefined,
     takes: undefined,
-    _frame: fr.f ?? undefined
+    tones: undefined,
+    _frame: fr.f ?? undefined,
+    _camera: cameraFor(s)
   }
   if (s.layout === 'image' && s.src) {
     const p = resolve(W, s.src)
@@ -537,28 +730,36 @@ for (const fr of frames) {
       failed = true
     } else spec._src = dataUrl(p)
   }
-  // generated pictures (scripts/gen-images.mjs): an illustration, or a scene's background
-  const pic =
-    s.layout === 'illustration'
-      ? { src: s.src, prompt: s.prompt, key: '_src', kind: 'illustration' }
-      : s.layout === 'scene' && s.bg && typeof s.bg === 'object'
-        ? { src: s.bg.src, prompt: s.bg.prompt, key: '_bg', kind: 'background' }
-        : null
-  if (pic) {
-    const p = pic.src
-      ? resolve(W, pic.src)
-      : pic.prompt
-        ? genPath(W, pic.prompt, style, pic.kind)
-        : null
-    if (p && existsSync(p)) spec[pic.key] = dataUrl(p)
+  // generated pictures (scripts/gen-images.mjs): an illustration (one picture, or `layers`: a backdrop and
+  // cut-outs), or a scene's background. Returns a data URL, or null after reporting it missing.
+  const picture = (src, prompt, kind) => {
+    const p = src ? resolve(W, src) : prompt ? genPath(W, prompt, style, kind) : null
+    if (p && existsSync(p)) return dataUrl(p)
+    const msg = `[${s.id}, line ${s.line}]: ${src ? 'image not found: ' + src : 'picture not generated yet: run scripts/gen-images.mjs'}`
+    if (onlySlides) console.warn('warning ' + msg + ' (placeholder for now)')
     else {
-      const msg = `[${s.id}, line ${s.line}]: ${pic.src ? 'image not found: ' + pic.src : 'picture not generated yet: run scripts/gen-images.mjs'}`
-      if (onlySlides) console.warn('warning ' + msg + ' (placeholder for now)')
-      else {
-        console.error('PROBLEM ' + msg)
-        failed = true
-      }
+      console.error('PROBLEM ' + msg)
+      failed = true
     }
+    return null
+  }
+  if (s.layout === 'illustration' && Array.isArray(s.layers) && s.layers.length) {
+    const got = s.layers.map((l, j) => ({
+      src: picture(l.src, l.prompt, j ? 'layer' : 'backdrop'),
+      depth: l.depth ?? (s.layers.length > 1 ? j / (s.layers.length - 1) : 1),
+      blur: l.blur,
+      // where the cut-out's centre goes in the 1920×1080 frame, and its size (cut-outs come back centred)
+      x: l.x,
+      y: l.y,
+      scale: l.scale
+    }))
+    if (got.every((l) => l.src)) spec._layers = got
+  } else if (s.layout === 'illustration') {
+    const u = picture(s.src, s.prompt, 'illustration')
+    if (u) spec._src = u
+  } else if (s.layout === 'scene' && s.bg && typeof s.bg === 'object') {
+    const u = picture(s.bg.src, s.bg.prompt, 'background')
+    if (u) spec._bg = u
   }
   await page.evaluate(
     ([spec, chrome]) => window.show(spec, chrome),
@@ -575,6 +776,9 @@ for (const fr of frames) {
         channel: ch
       }
     ]
+  )
+  await page.evaluate(() =>
+    Promise.all([...document.images].map((im) => im.decode().catch(() => {})))
   )
   await page.waitForTimeout(
     ['image', 'subscribe', 'illustration'].includes(s.layout) || spec._bg ? 120 : 0
@@ -711,8 +915,8 @@ let at = 0
 for (const s of all) {
   if (!s.say.length) continue
   if (s.astart - at > 0.001) aList.push(silence(s.astart - at))
-  s.takes.forEach((k, j) => {
-    if (j) aList.push(silence(BEAT))
+  s.takes.forEach((k) => {
+    if (k.gap > 0.0005) aList.push(silence(k.gap))
     aList.push(join(vdir, 'voice', k.id + '.wav'))
   })
   at = s.astart + s.audio
@@ -889,6 +1093,7 @@ const srt = []
 for (const s of all.filter((x) => x.say.length)) {
   let c = s.astart
   for (const k of s.takes) {
+    c += k.gap
     const sentences = k.text.match(/[^.!?]+[.!?]+["')]?|[^.!?]+$/g) || []
     const chars = sentences.reduce((a, x) => a + x.trim().length, 0) || 1
     const len = takeLen(k)
@@ -897,15 +1102,14 @@ for (const s of all.filter((x) => x.say.length)) {
       srt.push(`${srt.length + 1}\n${ts(c)} --> ${ts(c + d)}\n${x.trim()}\n`)
       c += d
     }
-    c += BEAT
   }
 }
 writeFileSync(join(dirname(outFile), 'video.srt'), srt.join('\n'))
-const chapters = [{ at: 0, title: 'Intro' }]
+const chapters = [{ at: 0, title: T.intro }]
 for (const s of all) {
   if (s.auto) chapters.push({ at: s.start, title: s.sec.title })
-  if (s.sec.tag === 'SUMMARY' && !chapters.some((c) => c.title === 'Summary'))
-    chapters.push({ at: s.start, title: 'Summary' })
+  if (s.sec.tag === 'SUMMARY' && !chapters.some((c) => c.title === T.summary))
+    chapters.push({ at: s.start, title: T.summary })
 }
 writeFileSync(
   join(dirname(outFile), 'chapters.txt'),

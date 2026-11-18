@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// Generates the pictures a script asks for, with the OpenAI Image API (same model and key as the blog-image
-// skill): every `illustration` cue with a "prompt", and every `scene` cue whose "bg" is {"prompt": …}.
+// Generates the pictures a script asks for, with the OpenAI Image API (model: config models.image):
+// every `illustration` cue with a "prompt" (or each prompt in its "layers": the first one an opaque
+// backdrop, the others cut-outs on a transparent background, for the camera's parallax), and every `scene`
+// cue whose "bg" is {"prompt": …}.
 //
 //   node gen-images.mjs <$W> [--dry-run] [--quality low|medium|high] [--force] [--only <hash>]
 //
@@ -13,6 +15,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
+import { env, openaiHint } from './env.mjs'
 import { genPath, imagePrompt, loadStyle } from './style.mjs'
 
 const args = process.argv.slice(2)
@@ -47,7 +50,13 @@ readFileSync(join(W, 'script.md'), 'utf8')
     } catch {
       return
     }
-    if (c.layout === 'illustration' && c.prompt && !c.src)
+    // a layered illustration: the first layer is the opaque backdrop, the rest are cut-outs on transparency
+    if (c.layout === 'illustration' && Array.isArray(c.layers) && c.layers.length)
+      c.layers.forEach((l, j) => {
+        if (l && l.prompt && !l.src)
+          jobs.push({ line: ln + 1, prompt: l.prompt, kind: j ? 'layer' : 'backdrop' })
+      })
+    else if (c.layout === 'illustration' && c.prompt && !c.src)
       jobs.push({ line: ln + 1, prompt: c.prompt, kind: 'illustration' })
     if (c.layout === 'scene' && c.bg && typeof c.bg === 'object' && c.bg.prompt && !c.bg.src)
       jobs.push({ line: ln + 1, prompt: c.bg.prompt, kind: 'background' })
@@ -71,17 +80,10 @@ for (const j of todo)
   console.log(`\n· script line ${j.line} (${j.kind}) → ${j.out.replace(W + '/', '')}\n${j.full}`)
 if (dry || !todo.length) process.exit(0)
 
-let key = process.env.OPENAI_API_KEY
-if (!key) {
-  const env = join(style.config.project, '.env')
-  if (existsSync(env)) {
-    const m = readFileSync(env, 'utf8').match(/^OPENAI_API_KEY=(.+)$/m)
-    if (m) key = m[1].trim().replace(/^['"]|['"]$/g, '')
-  }
-}
+const key = env('OPENAI_API_KEY', W)
 if (!key) {
   console.error(
-    '\nNo OPENAI_API_KEY (environment or the project .env): add it, or skip generated pictures.'
+    '\nNo OPENAI_API_KEY (environment or the project .env): add it, or skip generated pictures. `providers.mjs --check` tests it.'
   )
   process.exit(1)
 }
@@ -98,7 +100,7 @@ for (const j of todo) {
       size: '1536x864',
       quality,
       output_format: 'png',
-      background: 'opaque',
+      background: j.kind === 'layer' ? 'transparent' : 'opaque',
       n: 1
     })
   )
@@ -129,8 +131,16 @@ for (const j of todo) {
   }
   const b64 = json.data?.[0]?.b64_json
   if (!b64) {
-    console.error('no image: ' + JSON.stringify(json.error ?? json).slice(0, 400))
+    console.error(
+      'no image: ' + (json.error ? openaiHint(0, json.error) : JSON.stringify(json).slice(0, 400))
+    )
     failed++
+    // a key, access or credit problem fails every picture the same way: stop at the first
+    if (
+      json.error &&
+      /invalid_api_key|model_not_found|insufficient_quota|verif/i.test(JSON.stringify(json.error))
+    )
+      break
     continue
   }
   writeFileSync(j.out, Buffer.from(b64, 'base64'))

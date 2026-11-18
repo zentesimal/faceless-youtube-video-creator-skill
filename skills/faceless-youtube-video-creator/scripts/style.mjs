@@ -6,13 +6,16 @@
 //   { "preset": "<folder in ../styles/>", "pace": 1-5, "voice": "af_heart", "animate": "auto" | "off",
 //     "illustrations": false, "style": "brand" | "story", "inspiration": "/abs/folder",
 //     "theme": { "ground", "main", "second", "accent": "#hex", "display", "body", "fontFiles": {…},
-//                "texture": "dots" | "grain" | "paint" | "none" }, "imageStyle": "…", "gap", "sectionGap", "maxPause" }
+//                "texture": "dots" | "grain" | "paint" | "none", "paper": "#hex" }, "imageStyle": "…", "gap", "sectionGap", "maxPause",
+//     "camera": "auto" | "off" | a move name (camera with parallax on scene and illustration slides; render-video.mjs) }
+//   theme "outline": px (the characters' line width; 0 = flat) and theme "texture": "soft" (clean vignette).
 // Merge order: defaults ← preset ← config "video" ← $W/style.json ← CLI flags.
 // `brand` = the channel's own palette, fonts, logo and wordmark (from the config). `story` = no branding.
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, extname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { env } from './env.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const skill = resolve(here, '..')
@@ -40,8 +43,13 @@ export const DEFAULTS = {
     imageStyle: null
   },
   video: { minutes: 15, pace: 3, voice: 'af_heart', animate: 'auto', illustrations: false },
-  paths: { workspace: './videos', topics: './youtube-topics.csv', channel: './channel.md' },
-  models: { image: 'gpt-image-2.5-sunburst' },
+  paths: {
+    workspace: './videos',
+    topics: './youtube-topics.csv',
+    kit: './channel',
+    channel: './channel/channel.md'
+  },
+  models: { image: 'gpt-image-2.5-sunburst', speech: 'gpt-4o-mini-tts' },
   credit: true,
   integrations: { zentesimal: false }
 }
@@ -97,14 +105,39 @@ export function findConfig(start) {
   return null
 }
 
-/** The merged project config, plus `file` (path or null), `project` (its folder), `at(path)`, `workspace`, `ttsDir`. */
+/** The first of `names` that exists in `dir`, or null. */
+const firstIn = (dir, names) =>
+  (dir ? names.map((n) => join(dir, n)).find((p) => existsSync(p)) : null) || null
+
+/**
+ * The merged project config, plus `file` (path or null), `project` (its folder), `at(path)`, `workspace`, `ttsDir`,
+ * and the channel kit: `kit` (the folder, default ./channel/), `channelMd` (the brief; an older project's
+ * ./channel.md still works), `kitLogo` and `kitAvatar` (logo.* / avatar.* in the kit, used when the config names none).
+ */
 export function loadConfig(start) {
   const file = findConfig(start)
   const cfg = merge(DEFAULTS, file ? readJson(file, CONFIG_FILE) : {})
   const project = file ? dirname(file) : process.cwd()
   const at = (p) => (p ? (isAbsolute(p) ? p : resolve(project, p)) : null)
   const workspace = at(cfg.paths.workspace)
-  return { ...cfg, file, project, at, workspace, ttsDir: join(workspace, '.tts') }
+  const kit = at(cfg.paths.kit)
+  let channelMd = at(cfg.paths.channel)
+  if (!(channelMd && existsSync(channelMd)) && existsSync(join(project, 'channel.md')))
+    channelMd = join(project, 'channel.md')
+  const kitLogo = firstIn(kit, ['logo.png', 'logo.svg', 'logo.jpg', 'logo.webp'])
+  const kitAvatar = firstIn(kit, ['avatar.png', 'avatar.jpg', 'avatar.webp'])
+  return {
+    ...cfg,
+    file,
+    project,
+    at,
+    workspace,
+    ttsDir: join(workspace, '.tts'),
+    kit,
+    channelMd,
+    kitLogo,
+    kitAvatar
+  }
 }
 
 /** The style presets: one folder per look in ../styles/ (each with a style.json). */
@@ -154,7 +187,7 @@ export function loadStyle(W) {
   const theme = story
     ? { ...brandTheme, fontFiles: {}, texture: 'grain', ...s.theme }
     : { ...brandTheme, ...s.theme }
-  const logoPath = config.at(L.logo)
+  const logoPath = config.at(L.logo) || config.kitLogo
   const logo = !story && logoPath && existsSync(logoPath) ? logoPath : null
   if (!story && logoPath && !logo) console.warn(`config: look.logo not found: ${logoPath}`)
   return {
@@ -201,13 +234,22 @@ export function imageStyle(style) {
         `outlines and shadows ${t.second}, one accent ${t.accent}. Simple shapes, generous space, subtle paper grain, no photorealism, no 3D.`
 }
 /** The full prompt for one picture: house style + what to draw (+ room for characters on a background). */
+const FRAMING = {
+  background:
+    'This is a background for a video slide: no people, no characters, no mascot. Keep the lower middle third calm and uncluttered (characters are drawn on top later), with a clear horizon or floor about 85% down.',
+  illustration:
+    'Wide 16:9 composition for a video slide; keep the subject inside the middle 80% (the edges may be cropped) and leave calm space at the bottom for a line of text.',
+  // layered illustrations (`layers`): the camera moves each layer at its own speed, so they must stack cleanly
+  backdrop:
+    'This is the far background plate of a layered 16:9 shot for an animated video: sky, distant scenery and the ground plane, softer and lighter with distance. No characters. Nothing important near the edges: the camera drifts and crops them. Other layers are placed on top of it later.',
+  layer:
+    'This is one cut-out layer of a layered 16:9 shot for an animated video: draw ONLY the described element(s), fully isolated on a transparent background (no sky, no backdrop, no ground plane beyond what the element stands on, no frame, no vignette, no drop-shadow box). Keep the element at the size and position it has in the final 16:9 frame (e.g. a foreground rock in the lower-left corner), with clean edges.'
+}
 export function imagePrompt(prompt, style, kind = 'illustration') {
   return [
     imageStyle(style),
     'Scene: ' + prompt.trim(),
-    kind === 'background'
-      ? 'This is a background for a video slide: no people, no characters, no mascot. Keep the lower middle third calm and uncluttered (characters are drawn on top later), with a clear horizon or floor about 85% down.'
-      : 'Wide 16:9 composition for a video slide; keep the subject inside the middle 80% (the edges may be cropped) and leave calm space at the bottom for a line of text.',
+    FRAMING[kind] || FRAMING.illustration,
     NO_TEXT
   ].join('\n\n')
 }
@@ -297,10 +339,10 @@ export function themeWarnings(style) {
   return out
 }
 
-/** Channel identity: the config's identity, else the project's channel.md table: name, handle, avatar. */
+/** Channel identity: the config's identity, else the kit's channel.md table, else the kit's avatar.*: name, handle, avatar. */
 export function channel(style) {
   const config = style.config
-  const mdPath = config.at(config.paths.channel)
+  const mdPath = config.channelMd
   const md = readFileSync(
     mdPath && existsSync(mdPath) ? mdPath : join(skill, 'references/channel.example.md'),
     'utf8'
@@ -314,7 +356,7 @@ export function channel(style) {
   const id = config.identity
   const name = (config.file && id.name) || row('Channel name') || id.name
   const handle = id.handle || row('Handle')
-  const avatarPath = id.avatar || row('Avatar')
+  const avatarPath = id.avatar || row('Avatar') || config.kitAvatar
   let avatar = ''
   if (avatarPath) {
     const p = config.at(avatarPath)
@@ -352,8 +394,9 @@ export async function launchBrowser(
   args = ['--font-render-hinting=none', '--force-color-profile=srgb']
 ) {
   const pw = await loadPlaywright()
-  for (const o of process.env.CHROMIUM_PATH
-    ? [{ executablePath: process.env.CHROMIUM_PATH }]
+  const chromium = env('CHROMIUM_PATH')
+  for (const o of chromium
+    ? [{ executablePath: chromium }]
     : [{}, { channel: 'chrome' }, { executablePath: '/opt/pw-browsers/chromium' }]) {
     try {
       return await pw.chromium.launch({ ...o, args })

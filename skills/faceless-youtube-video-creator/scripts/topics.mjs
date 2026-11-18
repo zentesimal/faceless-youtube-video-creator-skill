@@ -23,7 +23,8 @@ const example = join(skill, 'references/youtube-topics.example.csv')
 const file = existsSync(sheet) ? sheet : example
 if (file === example)
   console.log(
-    `no topic sheet yet at ${sheet}: these are the example rows that ship with the skill\n`
+    `no topic sheet yet at ${sheet}. The rows below are the examples that ship with the skill: they only show the\n` +
+      "sheet's format. Don't offer them as topics: propose topics from the channel's pillars (SKILL.md §1a).\n"
   )
 
 // RFC 4180: quoted fields may hold commas, quotes ("") and newlines

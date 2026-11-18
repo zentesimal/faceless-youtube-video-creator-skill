@@ -1,6 +1,6 @@
 # Channel brief
 
-**Example.** The skill's first-run setup writes your own copy to `channel.md` in your project (`paths.channel` in `faceless-youtube.config.json`), filled from your answers; this file is the template and the fallback. It's written for a practical-AI channel: adapt every line.
+**Example.** The skill's first-run setup writes your own copy to `channel/channel.md` in your project (`paths.channel` in `faceless-youtube.config.json`), filled from your answers, next to the rest of your channel kit (logo, avatar, banner, Studio settings); this file is the template and the fallback. It's written for a practical-AI channel: adapt every line.
 
 The one place that says what the channel is about. The script's channel reminders, the subscribe asks, the description footer and the thumbnails all come from here. **Edit this file when the channel changes**, not the scripts.
 

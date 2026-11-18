@@ -1,0 +1,20 @@
+{
+  "style": "story",
+  "pace": 4,
+  "animate": "auto",
+  "camera": "auto",
+  "gap": 0.08,
+  "sectionGap": 0.25,
+  "maxPause": 0.2,
+  "theme": {
+    "ground": "#eef3f4",
+    "main": "#2f7f9a",
+    "second": "#1c1f4a",
+    "accent": "#f2994a",
+    "display": "Inter",
+    "body": "Inter",
+    "texture": "soft",
+    "outline": 3
+  },
+  "imageStyle": "Flat vector illustration for an animated science explainer. Clean geometric shapes with no outlines, smooth gradients in skies and water, soft inner shading and a warm rim light on the edges facing the light source. Strong sense of depth: foreground, midground and background layers, each farther layer lighter, bluer and less detailed (atmospheric perspective). Glowing light sources with gentle bloom, a few soft floating particles. Palette: deep indigo night blues (#1c1f4a), teal and turquoise (#2f7f9a, #6cc3cf), warm sunset orange and peach (#f2994a, #f7c59f), soft cream highlights, a touch of violet. Calm, friendly and a little whimsical; crisp at 1080p. No outlines, no paper or grain texture, no photorealism, no 3D render look, no anime style."
+}

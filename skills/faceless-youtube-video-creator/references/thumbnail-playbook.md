@@ -2,18 +2,41 @@
 
 Every video ships with **two thumbnails, A and B**, for YouTube Studio's _Test & compare_ (it splits impressions between up to three thumbnails and picks the one with the most watch time). Rendered locally by `scripts/render-thumbnails.mjs` from `thumbs/spec.json`.
 
+## Pick the angles first (wording + image strategy)
+
+Before choosing layouts, decide **why** someone would click. Each variant takes **one angle** from the list below, and A and B take **different angles**: that's the hypothesis. The angle sets both the words and the picture, so they say the same thing.
+
+| `angle`      | The viewer thinks…                   | Wording formula                                                                  | Image                                                                                     | Layouts that fit             |
+| ------------ | ------------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------- |
+| `explain`    | "That's exactly what I want to know" | Name the thing plainly: the topic or the outcome in 2–4 words ("HOW LLMS THINK") | The object itself, clear and calm: the diagram, the tool, the screen; neutral face/mascot | `title`, `card`, `bold`      |
+| `desire`     | "I want that result"                 | The positive outcome, concrete and soon ("10× BETTER ANSWERS", "WRITES FOR YOU") | The after state: a happy/relieved character, a ✓, bright `light` theme, warm scene        | `bold`, `versus` (after big) |
+| `fear`       | "Am I making this mistake?"          | The loss or mistake to avoid ("STOP DOING THIS", "IT LIED TO YOU")               | The problem: a ✕, a wrong answer, a shocked character, darker `dark`/`mood` scene         | `mood`, `chat`, `bold`       |
+| `curiosity`  | "Wait, why?"                         | An open loop that the title doesn't close ("NO MEMORY?", "WHY 2 R'S?")           | One odd detail that doesn't fit: a puzzled character, a strange object, lots of space     | `question`, `mood`, `card`   |
+| `proof`      | "I can see it working (or failing)"  | Let the image talk; the words only frame it ("IT FAILED", "TESTED")              | The real artifact from the video: the chat, the before/after, the number on screen        | `chat`, `versus`             |
+| `contrarian` | "That's not what I thought"          | Flip a common belief ("PROMPTS DON'T MATTER", "AI CAN'T READ")                   | Something crossed out or upside down; a confident character against the crowd             | `bold`, `question`           |
+| `identity`   | "This is for people like me"         | Name the viewer or their situation ("FOR NON-CODERS", "SUPPORT TEAMS")           | Someone who looks like the viewer at their desk, or their tool/workplace                  | `card`, `bold`, `title`      |
+| `news`       | "I need to know this now"            | What changed, plus when ("NEW IN 2026", "IT CHANGED")                            | The new thing, big, with a date/`sticker`; energetic scene                                | `bold`, `title`              |
+
+How to use it:
+
+- **Read the promise in `brief.md`** and write one headline per angle (8 lines, a minute's work), in the video's language and at the viewer level. Pick the two strongest, from **different** rows. Good default pairs: `explain` vs `desire` (clarity or payoff?), `desire` vs `fear` (gain or loss?), `curiosity` vs `proof` (question or evidence?). For low viewer levels (0–2) keep one variant `explain` unless the title already explains it; beginners click what they understand.
+- **Words and image must pull the same way.** A `fear` headline over a smiling, bright scene sends mixed signals; a `desire` headline over a ✕ does too. The character's pose follows the angle (`desire` → `cheer` or `wave`, `fear` → `shock` or `sad`, `curiosity` → `think` or `shrug`, `explain` → `neutral` or `point`; the `mascot` field has `neutral` · `shrug` · `shock` · `wave`, a `scene` cast has all nine poses).
+- **Don't over-promise.** `desire` and `fear` must be paid off in the video (the script delivers that outcome or names that mistake); `news` must be actually new; `proof` shows what really happens on screen.
+- **Same title, different angle.** The title stays fixed in the test, so the thumbnail angle shouldn't repeat it: if the title is `explain`, an `explain` thumbnail wastes the space; prefer `desire`, `fear` or `curiosity` against it.
+- Write the angle in each variant (`"angle": "fear"`, ignored by the renderer) and in the `hypothesis`: "A bets on desire (the better result), B bets on fear (the mistake to avoid)". When Test & compare picks a winner, record it with its angle in the topic sheet's `thumbnail_winner` (`A (desire)`), so the channel learns which angles work for its audience and starts the next test from the winner.
+- A third variant (`"C"`) is a good place to try an angle the channel hasn't tested yet.
+
 ## What makes the two variants a real test
 
-A and B must test **one hypothesis**, not two colour schemes. Write it in the spec's `hypothesis` field as "A bets on X, B bets on Y". Pairs that work for this channel:
+A and B must test **one hypothesis**, not two colour schemes. Write it in the spec's `hypothesis` field as "A bets on X, B bets on Y". The default test is **two angles** (above). Once the channel knows its winning angle, keep it on both and test the format instead:
 
-| A                                                   | B                                                               | Question it answers                       |
-| --------------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------- |
-| `bold`: the claim in 2–4 huge words + face or ghost | `chat`: the actual prompt/answer that fails or works            | Does the promise or the proof get clicks? |
-| `bold` with a face showing a reaction               | `bold`, same words, no face (mascot instead)                    | Does the presenter's face help?           |
-| `versus`: before ✕ / after ✓                        | `bold`: only the outcome                                        | Contrast or curiosity?                    |
-| `bold` with a positive frame ("10× better prompts") | `bold` with a negative frame ("Stop writing prompts like this") | Gain or loss framing?                     |
-| `question`: "AI MADE THIS?" over the scene          | `mood`: "NO MEMORY?", the problem, over a darker scene          | The result or the problem?                |
-| `card`: the viewer's question ("What's a …?")       | `title`: a statement ("ONE TEXT FILE" + tag)                    | Question or answer?                       |
+| A                                                   | B                                                      | Question it answers                       |
+| --------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------- |
+| `bold`: the claim in 2–4 huge words + face or ghost | `chat`: the actual prompt/answer that fails or works   | Does the promise or the proof get clicks? |
+| `bold` with a face showing a reaction               | `bold`, same words, no face (mascot instead)           | Does the presenter's face help?           |
+| `versus`: before ✕ / after ✓                        | `bold`: only the outcome                               | Contrast or curiosity?                    |
+| `question`: "AI MADE THIS?" over the scene          | `mood`: "NO MEMORY?", the problem, over a darker scene | The result or the problem?                |
+| `card`: the viewer's question ("What's a …?")       | `title`: a statement ("ONE TEXT FILE" + tag)           | Question or answer?                       |
 
 Keep everything else equal when you can (theme, sticker, logo), so the result means something.
 
@@ -58,10 +81,10 @@ A lone character in the scene is drawn larger than on a slide (it's the subject)
 ```json
 {
   "title": "Why ChatGPT can't count letters (and 4 fixes)",
-  "channel": "My Channel",
-  "hypothesis": "A bets on the claim, B bets on showing the failure",
+  "hypothesis": "A bets on curiosity (an odd claim), B bets on proof (showing the failure)",
   "variants": {
     "A": {
+      "angle": "curiosity",
       "layout": "bold",
       "text": "IT CAN'T\nCOUNT",
       "highlight": "COUNT",
@@ -70,6 +93,7 @@ A lone character in the scene is drawn larger than on a slide (it's the subject)
       "theme": "dark"
     },
     "B": {
+      "angle": "proof",
       "layout": "chat",
       "text": "WHY?",
       "chat": [
@@ -82,8 +106,11 @@ A lone character in the scene is drawn larger than on a slide (it's the subject)
 }
 ```
 
+The compare sheet puts the channel's name under the title, as YouTube does: always the configured channel for the video's language (the config and `channel.md`), never one typed into the spec (a `"channel"` field is ignored with a warning).
+
 | Field            | Layouts        | Notes                                                                                                                                                                           |
 | ---------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------- |
+| `angle`          | all            | the messaging angle (`explain` · `desire` · `fear` · `curiosity` · `proof` · `contrarian` · `identity` · `news`); a note for the test, the renderer ignores it                  |
 | `layout`         | all            | `bold` · `versus` · `chat` · `question` · `title` · `mood` · `card` (Feed layouts above)                                                                                        |
 | `text`           | all            | the headline; `\n` picks the break. Auto-sized from 168 px down to 84 px, then it's an overflow                                                                                 |
 | `highlight`      | all            | exact substring of `text` that gets the amber block                                                                                                                             |

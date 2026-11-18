@@ -37,9 +37,10 @@
         --body: 'Inter', system-ui, sans-serif;
         --bad: #d9363e;
         --good: #23875a;
-        --paper: color-mix(in srgb, var(--ground) 90%, var(--main));
+        /* the slide background: the ground tinted toward main, unless the theme sets `paper` */
+        --paper: var(--paper-set, color-mix(in srgb, var(--ground) 90%, var(--main)));
         --card: #fff;
-        --hair: color-mix(in srgb, var(--ground) 62%, var(--main));
+        --hair: var(--hair-set, color-mix(in srgb, var(--ground) 62%, var(--main)));
         --dot: color-mix(in srgb, var(--main) 13%, transparent);
         --muted: color-mix(in srgb, var(--second) 62%, var(--ground));
         --ink: var(--second);
@@ -168,6 +169,21 @@
       #stage.paint.dark .hl,
       #stage.paint.dark .hl * {
         color: var(--second);
+      }
+      /* doodles outside the paint look: the Paint colours become the theme's (assets/doodles.js reads --dz-*) */
+      #stage:not(.paint) {
+        --dz-ink: var(--second);
+        --dz-white: color-mix(in srgb, var(--ground) 30%, #fff);
+        --dz-yellow: var(--accent);
+        --dz-orange: color-mix(in srgb, var(--accent) 75%, var(--second));
+        --dz-red: color-mix(in srgb, #c0392b 75%, var(--ground));
+        --dz-green: color-mix(in srgb, var(--main) 55%, var(--accent));
+        --dz-blue: var(--main);
+        --dz-indigo: var(--main);
+        --dz-purple: color-mix(in srgb, var(--main) 70%, var(--second));
+        --dz-pink: color-mix(in srgb, var(--accent) 35%, var(--ground));
+        --dz-gray: color-mix(in srgb, var(--second) 22%, var(--ground));
+        --dz-brown: color-mix(in srgb, var(--accent) 60%, var(--second));
       }
       /* doodle: one hand-drawn picture (from the library in this file) with an optional line beside it */
       .doodle-row {
@@ -784,8 +800,8 @@
         --sc-ink: var(--second);
         --sc-ghost: #fff;
         --sc-screen: var(--second);
-        --sc-wall: color-mix(in srgb, var(--ground) 86%, var(--main));
-        --sc-floor: color-mix(in srgb, var(--ground) 62%, var(--main));
+        --sc-wall: var(--paper-set, color-mix(in srgb, var(--ground) 86%, var(--main)));
+        --sc-floor: var(--floor-set, color-mix(in srgb, var(--ground) 62%, var(--main)));
       }
       #stage.paint {
         --sc-line: #111;
@@ -927,6 +943,223 @@
         right: 980px;
         z-index: 1;
       }
+      /* illustrated worlds: depth layers the camera moves at different speeds (parallax), particles, marks.
+         Every [data-depth] element is a camera target: 0 = far (moves least) … 1 = near (moves with the cast). */
+      .world,
+      .layer,
+      .plxdom,
+      .fx {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        z-index: 0;
+        pointer-events: none;
+      }
+      .world {
+        overflow: hidden;
+      }
+      .layer,
+      .plxdom {
+        transform-origin: 0 0;
+      }
+      .plxdom {
+        z-index: 3;
+      }
+      .fx {
+        overflow: hidden;
+      }
+      svg.scene .plx {
+        transform-box: view-box;
+        transform-origin: 0 0;
+      }
+      svg.scene .aurora,
+      svg.scene .glow {
+        transform-box: fill-box;
+        transform-origin: 50% 50%;
+      }
+      .fx i {
+        position: absolute;
+        display: block;
+        border-radius: 50%;
+        will-change: transform, opacity;
+      }
+      .fx i.sparkle {
+        border-radius: 0;
+        clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+      }
+      .fx i.rain {
+        border-radius: 2px;
+      }
+      .mk-svg {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: visible;
+      }
+      .mk-svg .mk {
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+      }
+      .mk-svg .mk[data-mk='ring'],
+      .mk-svg .mk-pulse,
+      .mk-svg .mk-head {
+        transform-origin: 50% 50%;
+        transform-box: fill-box;
+      }
+      .mk-tag {
+        position: absolute;
+        translate: -50% 0;
+        padding: 10px 24px;
+        border-radius: 999px;
+        font-family: var(--body);
+        font-weight: 700;
+        font-size: 36px;
+        line-height: 1.15;
+        white-space: nowrap;
+        color: var(--second);
+        background: color-mix(in srgb, var(--ground) 30%, #fff);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+      }
+      .mk-tag.on-pin {
+        translate: -50% 0;
+        font-size: 32px;
+        padding: 6px 20px;
+      }
+      /* flow: a simple diagram of boxes and arrows (chains, branches, cycles, a hub with its concepts) */
+      .box.flow-top {
+        bottom: auto;
+        height: 130px;
+        top: 110px;
+        justify-content: flex-start;
+        z-index: 2;
+      }
+      svg.flow {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: visible;
+        z-index: 1;
+      }
+      #stage.paint svg.flow {
+        filter: url(#wobble-soft);
+      }
+      svg.flow .fl-line {
+        fill: none;
+        stroke: var(--fl-line);
+        stroke-width: 7;
+        stroke-linecap: round;
+      }
+      svg.flow .fl-head {
+        fill: var(--fl-line);
+        transform-box: fill-box;
+        transform-origin: 50% 50%;
+      }
+      #stage {
+        --fl-line: color-mix(in srgb, var(--main) 75%, var(--ink));
+      }
+      #stage.dark {
+        --fl-line: color-mix(in srgb, var(--accent) 60%, var(--ground));
+      }
+      .fnode {
+        position: absolute;
+        z-index: 2;
+        box-sizing: border-box;
+        padding: 28px 32px;
+        border-radius: 26px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 8px;
+        border: 4px solid color-mix(in srgb, var(--main) 35%, var(--card));
+        box-shadow: 0 14px 34px color-mix(in srgb, var(--second) 18%, transparent);
+      }
+      /* narrow boxes (6–7 in a row): less padding, so the words keep their room */
+      .fnode.tight {
+        padding: 16px 12px;
+        border-radius: 18px;
+      }
+      .fnode .ft {
+        font-family: var(--display);
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--ink);
+      }
+      .fnode .fs {
+        font-family: var(--body);
+        font-size: 30px;
+        line-height: 1.25;
+        color: var(--muted);
+      }
+      .fnode.on {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 22%, var(--card));
+      }
+      .fnode.dark {
+        background: var(--second);
+        border-color: var(--second);
+      }
+      .fnode.dark .ft {
+        color: var(--ground);
+      }
+      .fnode.dark .fs {
+        color: color-mix(in srgb, var(--ground) 70%, var(--second));
+      }
+      .fnode.hub .ft {
+        font-size: 1.15em;
+      }
+      .fnode.hidden,
+      .flabel.hidden {
+        visibility: hidden;
+      }
+      .flabel {
+        position: absolute;
+        z-index: 2;
+        translate: -50% -50%;
+        padding: 6px 18px;
+        border-radius: 999px;
+        font-family: var(--body);
+        font-weight: 600;
+        font-size: 26px;
+        white-space: nowrap;
+        color: var(--ink);
+        background: var(--paper);
+        border: 3px solid color-mix(in srgb, var(--main) 30%, var(--paper));
+      }
+      .fdot {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 1;
+        width: 18px;
+        height: 18px;
+        margin: -9px 0 0 -9px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 14px var(--accent);
+        opacity: 0;
+        offset-rotate: 0deg;
+      }
+      /* soft texture: a clean vignette, no grain (illustrated look) */
+      #stage.soft {
+        background-image: none;
+      }
+      #stage.soft::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse at center,
+          transparent 60%,
+          color-mix(in srgb, var(--second) 30%, transparent) 100%
+        );
+        z-index: 5;
+      }
     </style>
   </head>
   <body>
@@ -1002,11 +1235,609 @@
         // doodles come from assets/doodles.js, inlined by the renderer in the script tag above
         const doodle = (name) => (window.doodle ? window.doodle(name) : '')
 
+        // ---------- illustrated worlds: particles, marks, camera ----------
+        // deterministic noise, seeded from the slide, so a slide renders the same every time
+        const seeded = (str) => {
+          let h = 2166136261
+          for (const c of String(str)) h = Math.imul(h ^ c.charCodeAt(0), 16777619)
+          let s = (h >>> 0) % 2147483646 || 1
+          return () => {
+            s = (s * 16807) % 2147483647
+            return (s - 1) / 2147483646
+          }
+        }
+        // particles: built by show() (the still shows them), moved by anim() (fxParts: element + keyframes)
+        let fxParts = []
+        const FX = {
+          // n, then one particle: [css, keyframes, duration ms]; `p` = where in its cycle it starts
+          snow: [
+            70,
+            (r, i) => {
+              const z = r()
+              const size = 4 + z * 9
+              const x = r() * 1920
+              const sway = (r() - 0.5) * 120
+              return [
+                {
+                  left: x + 'px',
+                  top: '-20px',
+                  width: size + 'px',
+                  height: size + 'px',
+                  background: '#fff',
+                  opacity: 0.55 + z * 0.4,
+                  filter: z > 0.75 ? 'blur(2px)' : ''
+                },
+                [
+                  { transform: 'translate(0, 0)' },
+                  { transform: `translate(${sway}px, 560px)` },
+                  { transform: 'translate(0, 1120px)' }
+                ],
+                (16000 - z * 7000) | 0
+              ]
+            }
+          ],
+          dust: [
+            45,
+            (r) => {
+              const size = 2 + r() * 4
+              return [
+                {
+                  left: r() * 1920 + 'px',
+                  top: 200 + r() * 880 + 'px',
+                  width: size + 'px',
+                  height: size + 'px',
+                  background: 'color-mix(in srgb, var(--accent) 35%, #fff)',
+                  boxShadow: '0 0 8px color-mix(in srgb, var(--accent) 50%, #fff)'
+                },
+                [
+                  { opacity: 0, transform: 'translate(0, 0)' },
+                  {
+                    opacity: 0.8,
+                    transform: `translate(${(r() - 0.5) * 60}px, -90px)`,
+                    offset: 0.5
+                  },
+                  { opacity: 0, transform: `translate(${(r() - 0.5) * 60}px, -200px)` }
+                ],
+                (8000 + r() * 6000) | 0
+              ]
+            }
+          ],
+          bokeh: [
+            14,
+            (r) => {
+              const size = 60 + r() * 140
+              return [
+                {
+                  left: r() * 1920 - size / 2 + 'px',
+                  top: r() * 1080 - size / 2 + 'px',
+                  width: size + 'px',
+                  height: size + 'px',
+                  background: r() < 0.3 ? 'color-mix(in srgb, var(--accent) 50%, #fff)' : '#fff',
+                  filter: 'blur(14px)'
+                },
+                [
+                  { opacity: 0.06, transform: 'translate(0, 0)' },
+                  {
+                    opacity: 0.2,
+                    transform: `translate(${(r() - 0.5) * 160}px, ${(r() - 0.5) * 60}px)`
+                  },
+                  { opacity: 0.06, transform: 'translate(0, 0)' }
+                ],
+                (14000 + r() * 8000) | 0
+              ]
+            }
+          ],
+          stars: [
+            60,
+            (r) => {
+              const size = 2 + r() * 3
+              return [
+                {
+                  left: r() * 1920 + 'px',
+                  top: r() * 700 + 'px',
+                  width: size + 'px',
+                  height: size + 'px',
+                  background: '#fff',
+                  boxShadow: '0 0 6px #fff'
+                },
+                [{ opacity: 1 }, { opacity: 0.15 }, { opacity: 1 }],
+                (2000 + r() * 3000) | 0
+              ]
+            }
+          ],
+          sparkle: [
+            12,
+            (r) => {
+              const size = 26 + r() * 30
+              return [
+                {
+                  left: 120 + r() * 1680 + 'px',
+                  top: 80 + r() * 800 + 'px',
+                  width: size + 'px',
+                  height: size + 'px',
+                  background: 'color-mix(in srgb, var(--accent) 45%, #fff)',
+                  filter: 'drop-shadow(0 0 6px #fff)'
+                },
+                [
+                  { opacity: 0, transform: 'scale(.2) rotate(0deg)' },
+                  { opacity: 1, transform: 'scale(1) rotate(45deg)', offset: 0.3 },
+                  { opacity: 0, transform: 'scale(.2) rotate(90deg)', offset: 0.6 },
+                  { opacity: 0, transform: 'scale(.2) rotate(90deg)' }
+                ],
+                (2400 + r() * 2000) | 0,
+                'sparkle'
+              ]
+            }
+          ],
+          rain: [
+            110,
+            (r) => {
+              const h = 30 + r() * 30
+              return [
+                {
+                  left: r() * 2100 - 90 + 'px',
+                  top: -60 + 'px',
+                  width: '3px',
+                  height: h + 'px',
+                  background: 'rgba(255,255,255,.45)',
+                  rotate: '12deg'
+                },
+                [{ transform: 'translate(0, 0)' }, { transform: 'translate(-240px, 1180px)' }],
+                (650 + r() * 400) | 0,
+                'rain'
+              ]
+            }
+          ],
+          embers: [
+            30,
+            (r) => {
+              const size = 3 + r() * 5
+              return [
+                {
+                  left: r() * 1920 + 'px',
+                  top: 700 + r() * 420 + 'px',
+                  width: size + 'px',
+                  height: size + 'px',
+                  background: 'var(--accent)',
+                  boxShadow: '0 0 12px var(--accent)'
+                },
+                [
+                  { opacity: 0, transform: 'translate(0, 0)' },
+                  {
+                    opacity: 1,
+                    transform: `translate(${(r() - 0.5) * 80}px, -200px)`,
+                    offset: 0.3
+                  },
+                  {
+                    opacity: 0.4,
+                    transform: `translate(${(r() - 0.5) * 160}px, -460px)`,
+                    offset: 0.7
+                  },
+                  { opacity: 0, transform: `translate(${(r() - 0.5) * 200}px, -640px)` }
+                ],
+                (4000 + r() * 4000) | 0
+              ]
+            }
+          ]
+        }
+        const fxKinds = (S) =>
+          (Array.isArray(S.fx) ? S.fx : String(S.fx || '').split(/[\s,]+/)).filter((k) => FX[k])
+        const buildFx = (S, before) => {
+          const wrap = el('div', 'fx')
+          stage.insertBefore(wrap, before)
+          const r = seeded(JSON.stringify([S.fx, S.prompt, S.text, S.bg]))
+          fxParts = []
+          for (const kind of fxKinds(S)) {
+            const [n, make] = FX[kind]
+            for (let i = 0; i < n; i++) {
+              const [css, kf, dur, cls] = make(r, i)
+              const e = el('i', cls || '', wrap)
+              Object.assign(e.style, css)
+              const p = r()
+              fxParts.push({ e, kf, dur, p })
+              // the still: the particle where its cycle starts at t = 0
+              const a = e.animate(kf, { duration: dur, fill: 'both' })
+              a.currentTime = p * dur
+              e.dataset.still = JSON.stringify(
+                Object.fromEntries(['opacity', 'transform'].map((k) => [k, getComputedStyle(e)[k]]))
+              )
+              a.cancel()
+              Object.assign(e.style, JSON.parse(e.dataset.still))
+            }
+          }
+        }
+
+        // marks: pins, rings, glowing paths, arrows, tags drawn over the picture (coordinates in the 1920×1080
+        // frame), on the camera layer of the picture they point at, so they stick to it while the camera moves
+        let markIssues = []
+        const buildMarks = (S, layout) => {
+          markIssues = []
+          const world = stage.querySelector('.world')
+          const backDepth = world ? (world.querySelector('.layer')?.dataset.depth ?? '1') : '1'
+          const layer = el('div', 'layer marks')
+          layer.dataset.depth = S.marksDepth ?? backDepth
+          if (world) world.insertBefore(layer, world.querySelector(':scope > svg.scene'))
+          else
+            stage.insertBefore(
+              layer,
+              stage.querySelector('svg.scene')?.nextSibling || stage.firstChild
+            )
+          let svg = ''
+          const tags = []
+          const color = (m) => m.color || 'var(--accent)'
+          const inside = (x, y, what) => {
+            if (!(x >= 0 && x <= 1920 && y >= 0 && y <= 1080))
+              markIssues.push(`${what} at [${x}, ${y}] is off the 1920×1080 frame`)
+          }
+          S.marks.forEach((m, i) => {
+            const glow = `filter="drop-shadow(0 0 10px ${color(m)})"`
+            if (m.pin) {
+              const [x, y] = m.pin
+              inside(x, y, 'pin')
+              svg +=
+                `<g transform="translate(${x} ${y})"><ellipse cx="0" cy="0" rx="24" ry="8" fill="rgba(0,0,0,.28)"/>` +
+                `<g class="mk" data-mk="pin"><path d="M0 0 C-14 -26 -40 -44 -40 -74 A40 40 0 1 1 40 -74 C40 -44 14 -26 0 0 Z" style="fill:${color(m)}"/>` +
+                `<circle cx="0" cy="-74" r="17" fill="#fff"/></g></g>`
+              if (m.label) tags.push({ x, y: y + 18, text: m.label, pin: true })
+            } else if (m.ring) {
+              const [x, y] = m.ring
+              const R = m.r || 120
+              inside(x, y, 'ring')
+              svg +=
+                `<g class="mk" data-mk="ring"><circle cx="${x}" cy="${y}" r="${R}" style="fill:${color(m)};fill-opacity:.12;stroke:${color(m)};stroke-width:8" ${glow}/>` +
+                `<circle class="mk-pulse" cx="${x}" cy="${y}" r="${R}" style="fill:none;stroke:${color(m)};stroke-width:5"/></g>`
+            } else if (m.path) {
+              svg += `<g class="mk" data-mk="path"><path class="mk-line" d="${esc(m.path)}" style="fill:none;stroke:${color(m)};stroke-width:${m.width || 10};stroke-linecap:round;stroke-linejoin:round" ${glow}/></g>`
+            } else if (m.arrow) {
+              const [[x1, y1], [x2, y2]] = m.arrow
+              inside(x1, y1, 'arrow start')
+              inside(x2, y2, 'arrow end')
+              const bend = m.bend ?? 0.22
+              const cx = (x1 + x2) / 2 - (y2 - y1) * bend
+              const cy = (y1 + y2) / 2 + (x2 - x1) * bend
+              const ang = (Math.atan2(y2 - cy, x2 - cx) * 180) / Math.PI
+              svg +=
+                `<g class="mk" data-mk="arrow"><path class="mk-line" d="M${x1} ${y1} Q${cx} ${cy} ${x2} ${y2}" style="fill:none;stroke:${color(m)};stroke-width:${m.width || 10};stroke-linecap:round" ${glow}/>` +
+                `<g transform="translate(${x2} ${y2}) rotate(${ang.toFixed(1)})"><path class="mk-head" d="M6 0 L-34 -22 L-26 0 L-34 22 Z" style="fill:${color(m)}"/></g></g>`
+            } else if (m.tag) {
+              const [x, y] = m.tag
+              inside(x, y, 'tag')
+              tags.push({ x, y, text: m.text || '' })
+            }
+          })
+          layer.innerHTML = `<svg class="mk-svg" viewBox="0 0 1920 1080">${svg}</svg>`
+          for (const t of tags) {
+            const d = el('div', 'mk-tag mk' + (t.pin ? ' on-pin' : ''), layer, rich(t.text))
+            d.dataset.mk = 'tag'
+            d.style.left = t.x + 'px'
+            d.style.top = t.y + 'px'
+          }
+        }
+
+        // camera: one slow move over the whole slide, applied to every depth layer ([data-depth]); near layers
+        // move more than far ones (parallax). Moves are in px of content motion at depth 1.
+        const MOVES = {
+          push: { zoom: [1, 1.1] },
+          pull: { zoom: [1.1, 1] },
+          'pan-right': { x: [70, -70] },
+          'pan-left': { x: [-70, 70] },
+          rise: { y: [-45, 45] },
+          sink: { y: [45, -45] },
+          drift: { zoom: [1, 1.05], x: [24, -24] }
+        }
+        const cameraOf = (S) => {
+          let c = S._camera
+          if (c == null || c === false || c === 'none' || c === 'off') return null
+          if (c === 'auto' || c === true) {
+            const layered =
+              S.layout === 'illustration' ||
+              ((S.layout === 'scene' || S.layout === 'flow') &&
+                window.sceneIsLayered &&
+                window.sceneIsLayered(S))
+            if (!layered) return null
+            c = 'drift'
+          }
+          if (typeof c === 'string') return MOVES[c] || null
+          // {"to": [x, y], "zoom": 1.3} pushes toward a point; or {zoom: [a, b], x: [a, b], y: [a, b], at: [x, y]}
+          if (c.to) return { zoom: [1, c.zoom || 1.25], at: c.to }
+          return c
+        }
+        const cameraFrames = (c, k) => {
+          const z = c.zoom || [1, 1]
+          const xs = c.x || [0, 0]
+          const ys = c.y || [0, 0]
+          const at = c.at || [960, 540]
+          const fx = Math.min(1680, Math.max(240, at[0]))
+          const fy = Math.min(920, Math.max(160, at[1]))
+          const poses = [0, 1].map((i) => ({
+            s: 1 + (Math.max(1, z[i]) - 1) * k,
+            px: xs[i] * k,
+            py: ys[i] * k
+          }))
+          // extra zoom so the layer always covers the frame while it moves
+          const need = (p) =>
+            Math.max(0, p.px / fx, -p.px / (1920 - fx), p.py / fy, -p.py / (1080 - fy))
+          const over = Math.max(...poses.map((p) => Math.max(0, need(p) - (p.s - 1)))) + 0.004
+          return poses.map((p) => ({
+            transform: `translate(${(fx + p.px).toFixed(2)}px, ${(fy + p.py).toFixed(2)}px) scale(${(p.s + over).toFixed(4)}) translate(${-fx}px, ${-fy}px)`
+          }))
+        }
+
+        // ---------- flow: boxes and arrows, laid out from `nodes` + `links` ----------
+        // shape "auto" ranks the nodes along the arrows (chains, branches, merges; `direction` row | column),
+        // "cycle" puts them on a loop, "hub" puts the first one in the middle and the rest around it.
+        let flowIssues = []
+        const buildFlow = (S, y0) => {
+          flowIssues = []
+          const nodes = (S.nodes || [])
+            .map((n) => (typeof n === 'string' ? { text: n } : { ...n }))
+            .map((n, i) => ({ ...n, id: String(n.id ?? i), i }))
+          if (!nodes.length) return
+          if (nodes.length > 7)
+            flowIssues.push('a flow takes at most 7 nodes: split it or merge some')
+          const idx = Object.fromEntries(nodes.map((n) => [n.id, n.i]))
+          const shape = S.shape || 'auto'
+          const chain = (list) => list.slice(1).map((n, i) => [list[i].id, n.id])
+          const raw =
+            S.links ||
+            (shape === 'hub'
+              ? nodes.slice(1).map((n) => [nodes[0].id, n.id])
+              : shape === 'cycle'
+                ? nodes.map((n, i) => [n.id, nodes[(i + 1) % nodes.length].id])
+                : chain(nodes))
+          const links = raw
+            .map((l) => (Array.isArray(l) ? { from: l[0], to: l[1], label: l[2] } : { ...l }))
+            .map((l) => ({ ...l, from: String(l.from), to: String(l.to) }))
+            .filter((l) => {
+              const ok = idx[l.from] != null && idx[l.to] != null
+              if (!ok)
+                flowIssues.push(`a link names a node that doesn't exist: ${l.from} → ${l.to}`)
+              return ok
+            })
+          const vis = S.visible != null ? S.visible : nodes.length
+          const cur = S.current != null ? S.current : -1
+          const on = new Set((S.on || []).map(String))
+          const X0 = 130
+          const X1 = 1790
+          const Y1 = 1000
+          const W = X1 - X0
+          const H = Y1 - y0
+          const col = S.direction === 'column'
+
+          // centres and card widths
+          const pos = []
+          let cw = 360
+          if (shape === 'cycle' || shape === 'hub') {
+            const ring = shape === 'hub' ? nodes.slice(1) : nodes
+            const n = ring.length
+            cw = Math.min(380, Math.max(240, (W * 0.9) / Math.max(3, Math.ceil(n / 2) + 1) - 40))
+            const cx = (X0 + X1) / 2
+            const cy = (y0 + Y1) / 2
+            const rx = W / 2 - cw / 2 - 10
+            const ry = H / 2 - 80
+            ring.forEach((nd, k) => {
+              const a = -Math.PI / 2 + (2 * Math.PI * k) / n
+              pos[nd.i] = [cx + rx * Math.cos(a), cy + ry * Math.sin(a)]
+            })
+            if (shape === 'hub') pos[0] = [cx, cy]
+          } else {
+            // rank = longest path along forward links (in list order); a link back up the list is a loop-back
+            const rank = nodes.map(() => 0)
+            for (let pass = 0; pass < nodes.length; pass++)
+              for (const l of links)
+                if (idx[l.from] < idx[l.to])
+                  rank[idx[l.to]] = Math.max(rank[idx[l.to]], rank[idx[l.from]] + 1)
+            const R = Math.max(...rank) + 1
+            const byRank = Array.from({ length: R }, () => [])
+            nodes.forEach((nd) => byRank[rank[nd.i]].push(nd.i))
+            const most = Math.max(...byRank.map((r) => r.length))
+            // the gap left for an arrow shrinks with the number of ranks, so 6–7 boxes in a row stay readable
+            const slot = W / R
+            const gap = R > 1 ? Math.max(60, Math.min(170, slot * 0.35)) : 0
+            cw = col ? Math.min(560, W / most - 70) : Math.max(140, Math.min(460, slot - gap))
+            byRank.forEach((list, r) =>
+              list.forEach((i, k) => {
+                const main = (r + 0.5) / R
+                const cross = (k + 0.5) / list.length
+                pos[i] = col ? [X0 + cross * W, y0 + main * H] : [X0 + main * W, y0 + cross * H]
+              })
+            )
+          }
+
+          // cards (measured, so arrows can attach to their edges)
+          const rects = []
+          const cards = nodes.map((nd) => {
+            const hub = shape === 'hub' && nd.i === 0
+            const c = el(
+              'div',
+              'fnode card' +
+                (hub ? ' hub' : '') +
+                (nd.tone === 'dark' ? ' dark' : '') +
+                (nd.tone === 'accent' || on.has(nd.id) || nd.i === cur || hub ? ' on' : '') +
+                (nd.i >= vis ? ' hidden' : ''),
+              stage
+            )
+            c.dataset.i = nd.i
+            const w = hub ? Math.min(460, cw + 80) : cw
+            c.style.width = w + 'px'
+            const tight = w < 260
+            if (tight) c.classList.add('tight')
+            const t = el('div', 'ft', c, rich(nd.text))
+            if (nd.sub) el('div', 'fs', c, rich(nd.sub))
+            // fit: 40px down to 26px, at most ~3 lines
+            let fs = hub ? 60 : 52
+            t.style.fontSize = fs + 'px'
+            const minFs = tight ? 22 : 30
+            while (fs > minFs && (c.scrollHeight > 260 || t.scrollWidth > t.clientWidth + 1)) {
+              fs -= 2
+              t.style.fontSize = fs + 'px'
+            }
+            if (c.scrollHeight > 280)
+              flowIssues.push(`node "${nd.text}" is too long for its box: shorten it (≤ 5 words)`)
+            // a single word wider than the box would spill over its edges even at the smallest size
+            if (t.scrollWidth > t.clientWidth + 1)
+              flowIssues.push(
+                `node "${nd.text}" has a word wider than its box: shorter words, or fewer nodes in a row`
+              )
+            const h = c.offsetHeight
+            const [x, y] = pos[nd.i]
+            c.style.left = Math.round(x - w / 2) + 'px'
+            c.style.top = Math.round(y - h / 2) + 'px'
+            rects[nd.i] = { x: x - w / 2, y: y - h / 2, w, h, cx: x, cy: y }
+            return c
+          })
+          // one text size for every box (the smallest any box needed; the hub keeps its own), so a row reads
+          // evenly; the boxes are re-centred on their new heights
+          const ring = cards.filter((c) => !c.classList.contains('hub'))
+          const common = Math.min(
+            ...ring.map((c) => parseFloat(c.querySelector('.ft').style.fontSize))
+          )
+          ring.forEach((c) => {
+            c.querySelector('.ft').style.fontSize = common + 'px'
+            const r = rects[Number(c.dataset.i)]
+            r.h = c.offsetHeight
+            r.y = r.cy - r.h / 2
+            c.style.top = Math.round(r.y) + 'px'
+          })
+          // crowding: overlapping cards or cards off the frame
+          rects.forEach((a, i) => {
+            if (a.x < 40 || a.x + a.w > 1880 || a.y < y0 - 40 || a.y + a.h > 1060)
+              flowIssues.push(
+                `node "${nodes[i].text}" runs off the frame: fewer nodes or shorter text`
+              )
+            rects.forEach((b, j) => {
+              if (
+                j > i &&
+                a.x < b.x + b.w + 12 &&
+                b.x < a.x + a.w + 12 &&
+                a.y < b.y + b.h + 12 &&
+                b.y < a.y + a.h + 12
+              )
+                flowIssues.push('two nodes overlap: fewer nodes per column, or shorter text')
+            })
+          })
+
+          // arrows: side to side between ranks, centre-to-centre (clipped at the card edges) otherwise
+          const clip = (r, dx, dy, pad = 16) => {
+            const t = Math.min(
+              (r.w / 2 + pad) / Math.max(Math.abs(dx), 1e-6),
+              (r.h / 2 + pad) / Math.max(Math.abs(dy), 1e-6)
+            )
+            return [r.cx + dx * t, r.cy + dy * t]
+          }
+          let svg = ''
+          const labels = []
+          const dots = []
+          const arrows = S.arrows !== false
+          links.forEach((l, k) => {
+            const a = rects[idx[l.from]]
+            const b = rects[idx[l.to]]
+            const shown = idx[l.from] < vis && idx[l.to] < vis
+            let p0, c1, c2, p1
+            const forward = shape === 'auto' && idx[l.from] < idx[l.to]
+            if (forward && !col && b.cx - a.cx > 40) {
+              p0 = [a.x + a.w + 14, a.cy]
+              p1 = [b.x - (arrows ? 30 : 14), b.cy]
+              const m = (p1[0] - p0[0]) / 2
+              c1 = [p0[0] + m, p0[1]]
+              c2 = [p1[0] - m, p1[1]]
+            } else if (forward && col && b.cy - a.cy > 40) {
+              p0 = [a.cx, a.y + a.h + 14]
+              p1 = [b.cx, b.y - (arrows ? 30 : 14)]
+              const m = (p1[1] - p0[1]) / 2
+              c1 = [p0[0], p0[1] + m]
+              c2 = [p1[0], p1[1] - m]
+            } else if (shape === 'auto') {
+              // a loop back: arc over the top (row) or round the side (column)
+              p0 = col ? [a.x + a.w + 14, a.cy] : [a.cx, a.y - 14]
+              p1 = col ? [b.x + b.w + (arrows ? 30 : 14), b.cy] : [b.cx, b.y - (arrows ? 30 : 14)]
+              const lift = 150
+              c1 = col ? [p0[0] + lift, p0[1]] : [p0[0], p0[1] - lift]
+              c2 = col ? [p1[0] + lift, p1[1]] : [p1[0], p1[1] - lift]
+            } else {
+              const dx = b.cx - a.cx
+              const dy = b.cy - a.cy
+              const len = Math.hypot(dx, dy) || 1
+              p0 = clip(a, dx, dy)
+              p1 = clip(b, -dx, -dy, arrows ? 30 : 16)
+              // a cycle bows outward, away from the middle; a hub's spokes stay straight
+              const bow = shape === 'cycle' ? 0.18 * len : 0
+              const mx = (p0[0] + p1[0]) / 2
+              const my = (p0[1] + p1[1]) / 2
+              const ox = mx - (X0 + X1) / 2
+              const oy = my - (y0 + Y1) / 2
+              const ol = Math.hypot(ox, oy) || 1
+              const ctl = [mx + (ox / ol) * bow, my + (oy / ol) * bow]
+              c1 = ctl
+              c2 = ctl
+            }
+            const d = `M${p0[0].toFixed(1)} ${p0[1].toFixed(1)} C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p1[0].toFixed(1)} ${p1[1].toFixed(1)}`
+            const ang = (Math.atan2(p1[1] - c2[1], p1[0] - c2[0]) * 180) / Math.PI
+            svg +=
+              `<g class="fl-link" data-k="${k}" data-from="${idx[l.from]}" data-to="${idx[l.to]}" style="${shown ? '' : 'visibility:hidden'}">` +
+              `<path class="fl-line" d="${d}"${l.dashed ? ' stroke-dasharray="16 14"' : ''}/>` +
+              (arrows
+                ? `<g transform="translate(${p1[0].toFixed(1)} ${p1[1].toFixed(1)}) rotate(${ang.toFixed(1)})"><path class="fl-head" d="M18 0 L-14 -17 L-6 0 L-14 17 Z"/></g>`
+                : '') +
+              `</g>`
+            // the label sits on the curve's midpoint
+            const bz = (t, i) =>
+              (1 - t) ** 3 * p0[i] +
+              3 * (1 - t) ** 2 * t * c1[i] +
+              3 * (1 - t) * t * t * c2[i] +
+              t ** 3 * p1[i]
+            if (l.label) {
+              // on a flat arrow the label floats just above it, so it never sits between two boxes
+              const flat = Math.abs(p1[1] - p0[1]) < 60 && Math.abs(p1[0] - p0[0]) > 60
+              labels.push({
+                x: bz(0.5, 0),
+                y: bz(0.5, 1) - (flat ? 40 : 0),
+                text: l.label,
+                k,
+                shown
+              })
+            }
+            if (shown && S.dots !== false) dots.push({ d, k })
+          })
+          const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+          svgEl.setAttribute('class', 'flow')
+          svgEl.setAttribute('viewBox', '0 0 1920 1080')
+          svgEl.innerHTML = svg
+          stage.insertBefore(svgEl, cards[0])
+          for (const lb of labels) {
+            const e = el('div', 'flabel' + (lb.shown ? '' : ' hidden'), stage, rich(lb.text))
+            e.dataset.k = lb.k
+            e.style.left = lb.x + 'px'
+            e.style.top = lb.y + 'px'
+          }
+          for (const dt of dots) {
+            const e = el('div', 'fdot', stage)
+            e.dataset.k = dt.k
+            e.style.offsetPath = `path('${dt.d}')`
+          }
+        }
+
+        // speech bubbles over the cast, on a near camera layer so they travel with the characters
+        const bubbles = (cast) => {
+          const said = cast.filter((c) => c.say)
+          if (!said.length) return
+          const wrap = el('div', 'plxdom', stage)
+          wrap.dataset.depth = '1'
+          for (const c of said) {
+            const b = el('div', 'speech', wrap, rich(c.say))
+            b.style.left = Math.min(1640, Math.max(280, c.x)) + 'px'
+            b.style.bottom = Math.round(1080 - c.headTop + 34) + 'px'
+            speech.push(b)
+          }
+        }
+
         window.show = function (S, C) {
           A.forEach((a) => a.cancel())
           A = []
           ticks = []
           speech = []
+          markIssues = []
+          flowIssues = []
           stage.innerHTML = ''
           fitTargets = []
           mustFit = []
@@ -1016,14 +1847,30 @@
             S.theme === 'dark' ||
             layout === 'chapter' ||
             layout === 'subscribe' ||
-            (layout === 'scene' && !!window.sceneIsDark && window.sceneIsDark(S))
+            ((layout === 'scene' || (layout === 'flow' && S.bg)) &&
+              !!window.sceneIsDark &&
+              window.sceneIsDark(S))
           const brand = C.brand !== false
           const T = C.theme || {}
           for (const k of ['ground', 'main', 'second', 'accent', 'marker'])
             if (T[k]) stage.style.setProperty('--' + k, T[k])
             else stage.style.removeProperty('--' + k)
+          // `paper`: an exact background; walls, floors and hairlines then come from it and the ink, not from main
+          const paperVars = T.paper
+            ? {
+                '--paper-set': T.paper,
+                '--floor-set': `color-mix(in srgb, ${T.paper} 82%, ${T.second || '#111'})`,
+                '--hair-set': `color-mix(in srgb, ${T.paper} 75%, ${T.second || '#111'})`
+              }
+            : {}
+          for (const k of ['--paper-set', '--floor-set', '--hair-set'])
+            if (paperVars[k]) stage.style.setProperty(k, paperVars[k])
+            else stage.style.removeProperty(k)
           if (C.fonts && C.fonts.display) stage.style.setProperty('--display', C.fonts.display)
           if (C.fonts && C.fonts.body) stage.style.setProperty('--body', C.fonts.body)
+          // `outline`: the characters' line width in px (0 = flat, no outlines)
+          if (T.outline != null) stage.style.setProperty('--sc-lw', T.outline + 'px')
+          else stage.style.removeProperty('--sc-lw')
           const texture = T.texture || 'dots'
           stage.className =
             (dark ? 'dark' : '') +
@@ -1032,9 +1879,11 @@
               ? ' grain'
               : texture === 'paint'
                 ? ' paint'
-                : texture === 'none'
-                  ? ' notex'
-                  : '')
+                : texture === 'soft'
+                  ? ' soft'
+                  : texture === 'none'
+                    ? ' notex'
+                    : '')
           const plain = layout === 'chapter' || layout === 'end'
           const logo = brand && window.LOGO && window.LOGO !== '__LOGO__' ? window.LOGO : ''
           if (!plain) {
@@ -1079,6 +1928,19 @@
                 '<span class="num">' + (done ? '✓' : i + 1) + '</span><span>' + rich(p) + '</span>'
             })
             mustFit.push(box)
+          } else if (layout === 'flow') {
+            // optionally over a scene background (a layered world: the camera moves it, not the diagram)
+            if (S.bg && window.scene)
+              stage.insertAdjacentHTML(
+                'afterbegin',
+                window.scene({ ...S, cast: [], props: [] }, { textMode: 'none' }).svg
+              )
+            if (S.title) {
+              box.classList.add('flow-top')
+              if (S.bg) box.classList.add('plate')
+              heading(S.title, 64, 44)
+            }
+            buildFlow(S, S.title ? 300 : 140)
           } else if (layout === 'number') {
             heading(S.title, 70, 48)
             const n = el('div', 'bignum', box)
@@ -1183,7 +2045,12 @@
             heading(S.text, 132, 72)
           } else if (layout === 'point') {
             if (S.title)
-              el('div', 'of', box, esc(S.title) + (S.of ? ' · ' + S.n + ' of ' + S.of : ''))
+              el(
+                'div',
+                'of',
+                box,
+                esc(S.title) + (S.of ? ' · ' + S.n + ' ' + (S.ofWord || 'of') + ' ' + S.of : '')
+              )
             const row = el('div', 'pointbig', box)
             el('span', 'num', row, esc(S.n ?? ''))
             const h = el('h1', 'h', row, withHl(S.text, S.highlight))
@@ -1208,7 +2075,15 @@
             const many = (Array.isArray(S.cast) ? S.cast.length : 1) > 1
             const textMode = S.text ? (many || S.textAt === 'top' ? 'top' : 'left') : 'none'
             const sc = window.scene ? window.scene(S, { textMode, mascot: C.mascot }) : null
-            if (sc) stage.insertAdjacentHTML('afterbegin', sc.svg)
+            // with marks, the background and the cast are two pictures, so pins and paths sit between them
+            if (sc && Array.isArray(S.marks) && S.marks.length) {
+              const back = window.scene(
+                { ...S, cast: [], props: [] },
+                { textMode, mascot: C.mascot }
+              )
+              const front = window.scene({ ...S, bg: 'none' }, { textMode, mascot: C.mascot })
+              stage.insertAdjacentHTML('afterbegin', back.svg + front.svg)
+            } else if (sc) stage.insertAdjacentHTML('afterbegin', sc.svg)
             if (S.text) {
               box.classList.add(textMode === 'top' ? 'scene-top' : 'scene-left')
               if (S.bg && S.bg !== 'plain') box.classList.add('plate')
@@ -1216,28 +2091,53 @@
               if (S.sub) el('div', 'sub', box, rich(S.sub))
               mustFit.push(box)
             }
-            for (const c of sc ? sc.cast : [])
-              if (c.say) {
-                const b = el('div', 'speech', stage, rich(c.say))
-                b.style.left = Math.min(1640, Math.max(280, c.x)) + 'px'
-                b.style.bottom = Math.round(1080 - c.headTop + 34) + 'px'
-                speech.push(b)
-              }
+            bubbles(sc ? sc.cast : [])
           } else if (layout === 'illustration') {
-            const pic = S._src
-              ? el('img', 'illus')
-              : el(
-                  'div',
-                  'illus-ph',
-                  null,
-                  '<div><b>Illustration not generated yet</b><br>' +
-                    esc(S.prompt || S.src || '') +
-                    '</div>'
-                )
-            if (S._src) pic.src = S._src
-            stage.insertBefore(pic, stage.firstChild)
+            // one picture, or `layers` (a backdrop + cut-outs) the camera moves at their depths
+            const world = el('div', 'world')
+            stage.insertBefore(world, stage.firstChild)
+            const pics = S._layers || (S._src ? [{ src: S._src, depth: S.depth ?? 1 }] : null)
+            if (pics)
+              pics.forEach((p, i) => {
+                const L = el('div', 'layer', world)
+                L.dataset.depth = p.depth ?? (pics.length > 1 ? i / (pics.length - 1) : 1)
+                // a cut-out moved and sized in the frame (`x`, `y`, `scale`): its element is generated in the
+                // middle, so a wrapper puts that centre at (x, y) and scales it; the wrapper keeps the placement
+                // apart from the picture's own entrance animation and the layer's camera move
+                let holder = L
+                if (p.x != null || p.y != null || p.scale != null) {
+                  holder = el('div', 'place', L)
+                  holder.style.cssText =
+                    'position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:960px 540px'
+                  holder.style.transform = `translate(${(p.x ?? 960) - 960}px, ${(p.y ?? 540) - 540}px) scale(${p.scale ?? 1})`
+                }
+                const img = el('img', 'illus', holder)
+                img.src = p.src
+                if (p.blur) img.style.filter = `blur(${p.blur}px)`
+              })
+            else
+              el(
+                'div',
+                'illus-ph',
+                world,
+                '<div><b>Illustration not generated yet</b><br>' +
+                  esc(
+                    S.prompt || S.src || (S.layers || []).map((l) => l.prompt || l.src).join(' · ')
+                  ) +
+                  '</div>'
+              )
+            // the cast (the mascot, a person, a robot) acting inside the picture, on the near layer
+            const at = S.at || (S.cast && S.text ? 'left' : 'bottom')
+            if (S.cast && window.scene) {
+              const sc = window.scene(
+                { ...S, bg: 'none' },
+                { textMode: S.text ? (at === 'top' ? 'top' : 'left') : 'none', mascot: C.mascot }
+              )
+              world.insertAdjacentHTML('beforeend', sc.svg)
+              bubbles(sc.cast)
+            }
             if (S.text) {
-              box.classList.add('illus-' + (S.at || 'bottom'), 'plate')
+              box.classList.add('illus-' + at, 'plate')
               heading(S.text, S.size || 76, 44)
               if (S.sub) el('div', 'sub', box, rich(S.sub))
             }
@@ -1310,6 +2210,10 @@
             box.classList.add('endtop')
             heading(S.text, 84, 48)
           }
+          // illustrated-world extras, on any layout (mostly scene and illustration): marks, particles
+          if (Array.isArray(S.marks) && S.marks.length) buildMarks(S, layout)
+          fxParts = []
+          if (S.fx) buildFx(S, box.parentNode === stage ? box : null)
           return document.fonts.ready
         }
 
@@ -1425,6 +2329,8 @@
             rise(h, delay)
             sweep(hl, delay + 420)
           }
+          // the camera move (needs the slide's length: o.dur, seconds)
+          const cam = o.dur ? cameraOf(S) : null
           const loops = [] // [element, keyframes] repeated every LOOP ms after the intro
 
           if (layout === 'statement') {
@@ -1571,14 +2477,22 @@
             sweep(hl, 700)
             rise(sub, 450)
             fade($('.doodle-cap'), 600)
-          } else if (layout === 'scene') {
-            add(
-              $('svg.scene .bgall'),
-              [{ transform: 'scale(1.05)' }, { transform: 'none' }],
-              1400,
-              0,
-              'cubic-bezier(.2,.7,.2,1)'
-            )
+          } else if (layout === 'scene' || layout === 'illustration') {
+            // the picture settles in (skipped when the camera moves it for the whole slide)
+            if (!cam)
+              add(
+                layout === 'scene' ? $('svg.scene .bgall') : $$('.world .illus')[0],
+                [
+                  { transform: layout === 'scene' ? 'scale(1.05)' : 'scale(1.08)' },
+                  { transform: 'none' }
+                ],
+                layout === 'scene' ? 1400 : 1600,
+                0,
+                'cubic-bezier(.2,.7,.2,1)'
+              )
+            $$('.world .illus')
+              .slice(1)
+              .forEach((c, i) => rise(c, 150 + i * 150, 60, 900))
             $$('svg.scene .prop .pin').forEach((p, i) => pop(p, 200 + i * 120, 520, 0.5))
             const box = $('.box.plate')
             if (box) rise(box, 0)
@@ -1729,16 +2643,150 @@
                 [{ transform: 'none' }, { transform: 'translateY(-12px)' }, { transform: 'none' }]
               ])
             )
-          } else if (layout === 'illustration') {
-            add(
-              $('.illus'),
-              [{ transform: 'scale(1.08)' }, { transform: 'none' }],
-              1600,
-              0,
-              'cubic-bezier(.2,.7,.2,1)'
+          }
+
+          // flow: boxes pop in (in list order), each arrow draws itself once both its ends are there, labels
+          // fade in, and a dot keeps running along every arrow. A continued slide (reveal) only adds the new box.
+          if (layout === 'flow') {
+            if (!cont) {
+              rise($('.box .h'), 0)
+              sweep(hl, 400)
+            }
+            const cards = $$('.fnode:not(.hidden)')
+            const newest = S.visible != null ? S.visible - 1 : -1
+            const order = cont ? cards.filter((c) => Number(c.dataset.i) === newest) : cards
+            const at = new Map(order.map((c, j) => [Number(c.dataset.i), 250 + j * 300]))
+            order.forEach((c) => pop(c, at.get(Number(c.dataset.i)), 480, 0.6))
+            $$('svg.flow .fl-link').forEach((g) => {
+              if (g.style.visibility === 'hidden') return
+              const ts = [at.get(Number(g.dataset.from)), at.get(Number(g.dataset.to))].filter(
+                (t) => t != null
+              )
+              if (!ts.length) return // both ends were already there: the arrow stays drawn
+              const t = Math.max(...ts) + 150
+              const line = g.querySelector('.fl-line')
+              if (line.getAttribute('stroke-dasharray')) fade(g, t, 500)
+              else {
+                const L = Math.ceil(line.getTotalLength()) + 2
+                line.style.strokeDasharray = `${L} ${L}`
+                add(
+                  line,
+                  [{ strokeDashoffset: L }, { strokeDashoffset: 0 }],
+                  600,
+                  t,
+                  'cubic-bezier(.5,0,.3,1)'
+                )
+              }
+              pop(g.querySelector('.fl-head'), t + 550, 260, 0.2)
+              fade($(`.flabel[data-k="${g.dataset.k}"]`), t + 450, 300)
+            })
+            $$('.fdot').forEach((d) =>
+              loops.push([
+                d,
+                [
+                  { offsetDistance: '0%', opacity: 0 },
+                  { opacity: 1, offset: 0.15 },
+                  { opacity: 1, offset: 0.85 },
+                  { offsetDistance: '100%', opacity: 0 }
+                ]
+              ])
             )
-            rise($('.box.plate'), 300)
-            sweep(hl, 800)
+          }
+
+          // marks: pins drop, rings open and pulse, paths and arrows draw themselves, tags pop, one after another
+          $$('.marks .mk').forEach((m, i) => {
+            const at = 600 + i * 380
+            const k = m.dataset.mk
+            if (k === 'pin')
+              add(
+                m,
+                [
+                  { opacity: 0, transform: 'translateY(-90px)' },
+                  { opacity: 1, transform: 'none' }
+                ],
+                620,
+                at,
+                BOUNCE
+              )
+            else if (k === 'ring') {
+              pop(m, at, 620, 0.2)
+              loops.push([
+                m.querySelector('.mk-pulse'),
+                [
+                  { transform: 'scale(1)', opacity: 0.8 },
+                  { transform: 'scale(1.35)', opacity: 0 }
+                ]
+              ])
+            } else if (k === 'path' || k === 'arrow') {
+              const line = m.querySelector('.mk-line')
+              const L = Math.ceil(line.getTotalLength()) + 2
+              line.style.strokeDasharray = `${L} ${L}`
+              add(
+                line,
+                [{ strokeDashoffset: L }, { strokeDashoffset: 0 }],
+                1200,
+                at,
+                'cubic-bezier(.5,0,.3,1)'
+              )
+              pop(m.querySelector('.mk-head'), at + 1100, 320, 0.2)
+            } else if (k === 'tag') pop(m, m.classList.contains('on-pin') ? at - 200 : at, 440, 0.5)
+          })
+
+          // camera, particles and slow ambient loops run for the whole slide, so the renderer films every frame
+          let full = false
+          const depthLayers = cam ? $$('[data-depth]') : []
+          if (depthLayers.length) {
+            const D = o.dur * 1000
+            for (const e of depthLayers) {
+              const d = Math.max(0, Math.min(1, Number(e.dataset.depth) || 0))
+              const a = e.animate(cameraFrames(cam, 0.3 + 0.7 * d), {
+                duration: D,
+                fill: 'both',
+                easing: 'cubic-bezier(.45,.05,.55,.95)'
+              })
+              a.pause()
+              A.push(a)
+            }
+            full = true
+          }
+          if (o.dur && fxParts.length) {
+            for (const { e, kf, dur, p } of fxParts) {
+              e.style.opacity = ''
+              e.style.transform = ''
+              const a = e.animate(kf, { duration: dur, delay: -p * dur, iterations: Infinity })
+              a.pause()
+              A.push(a)
+            }
+            full = true
+          }
+          if (full) {
+            const slow = (e, kf, d) => {
+              if (!e) return
+              const a = e.animate(
+                kf.map((k) => ({ easing: 'ease-in-out', ...k })),
+                { duration: d, iterations: Infinity }
+              )
+              a.pause()
+              A.push(a)
+            }
+            $$('svg.scene .aurora').forEach((e, i) =>
+              slow(
+                e,
+                [
+                  { transform: 'none', opacity: 1 },
+                  { transform: `translateX(${i ? -50 : 60}px) scaleY(1.15)`, opacity: 0.7 },
+                  { transform: 'none', opacity: 1 }
+                ],
+                7000 + i * 1800
+              )
+            )
+            $$('svg.scene .glow').forEach((e) =>
+              slow(
+                e,
+                [{ transform: 'none' }, { transform: 'scale(1.08)' }, { transform: 'none' }],
+                5000
+              )
+            )
           }
 
           // snap the intro to whole frames; loops start right after it, so frame `intro*fps` is loop phase 0
@@ -1754,7 +2802,7 @@
             A.push(a)
           }
           window.seek(0)
-          return { intro, loop: loops.length ? LOOP / 1000 : 0 }
+          return { intro, loop: loops.length ? LOOP / 1000 : 0, full }
         }
         window.seek = function (t) {
           for (const a of A) a.currentTime = t * 1000
@@ -1763,6 +2811,8 @@
 
         window.check = function () {
           const issues = []
+          issues.push(...markIssues)
+          issues.push(...flowIssues)
           for (const { h, min } of fitTargets) {
             const box = h.closest('.box')
             if (box.scrollHeight > box.clientHeight + 2 || h.scrollWidth > h.clientWidth + 2)

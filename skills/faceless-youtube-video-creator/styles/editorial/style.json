@@ -1,0 +1,18 @@
+{
+  "style": "story",
+  "pace": 3,
+  "gap": 0.1,
+  "sectionGap": 0.3,
+  "maxPause": 0.2,
+  "theme": {
+    "ground": "#f7f6f2",
+    "main": "#c8202f",
+    "second": "#121212",
+    "accent": "#f4c430",
+    "display": "Fraunces",
+    "body": "Inter",
+    "texture": "none",
+    "paper": "#f7f6f2"
+  },
+  "imageStyle": "Minimal editorial illustration on an off-white background (#f7f6f2): bold black shapes, generous white space, a single red (#c8202f) element as the focal point and at most one yellow (#f4c430) detail. Flat, geometric, magazine-cover feel, crisp edges, no gradients, no textures, no photorealism, no 3D."
+}

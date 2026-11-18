@@ -29,9 +29,10 @@
   "paths": {
     "workspace": "./videos",
     "topics": "./youtube-topics.csv",
-    "channel": "./channel.md"
+    "kit": "./channel",
+    "channel": "./channel/channel.md"
   },
-  "models": { "image": "gpt-image-2.5-sunburst" },
+  "models": { "image": "gpt-image-2.5-sunburst", "speech": "gpt-4o-mini-tts" },
   "credit": true,
   "integrations": { "zentesimal": false }
 }

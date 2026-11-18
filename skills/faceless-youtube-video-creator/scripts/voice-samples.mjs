@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // Short voice samples to choose the narrator before the video is rendered.
 //
-//   node voice-samples.mjs [--lang en|es] [--voices af_heart,af_bella,am_michael] [--speed 0.92] [--text "…"]
+//   node voice-samples.mjs [--lang en|es] [--provider openai] [--voices af_heart,af_bella,am_michael] [--speed 0.92] [--text "…"]
+//
+//   --provider openai   the OpenAI candidates instead of Kokoro's (billed: one short line per voice, cached),
+//                       read with the default narrator instructions, as in the video
 //
 // Speaks one channel reminder line (the project's channel.md or the example; a fixed line for Spanish) in each voice and writes
 // <workspace>/.tts/samples/<voice>.wav (cached across videos). Play one with `afplay` (macOS), `ffplay -nodisp -autoexit`
@@ -10,7 +13,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadConfig, skill } from './style.mjs'
-import { listVoices, speak, ttsDir } from './tts-setup.mjs'
+import { NARRATOR } from './tones.mjs'
+import { langFor, listVoices, providerOf, speak, ttsDir } from './tts-setup.mjs'
 
 const args = process.argv.slice(2)
 const flag = (name, d) => {
@@ -30,18 +34,26 @@ export const CANDIDATES = {
     ['ef_dora', 'Spanish female, clear and friendly'],
     ['em_alex', 'Spanish male, neutral narrator']
     // em_santa also exists but is a Santa Claus character voice: not for this channel
+  ],
+  // paid, multilingual (they speak the video's language), and they act the script's tones
+  openai: [
+    ['openai:coral', 'warm, friendly female; the most expressive of the three'],
+    ['openai:sage', 'calm, measured female; suits documentary looks'],
+    ['openai:onyx', 'deep, steady male narrator']
   ]
 }
 
+const provider = flag('--provider', '')
+const pool = provider === 'openai' ? CANDIDATES.openai : CANDIDATES[lang] || CANDIDATES.en
 const voices = flag('--voices', '')
   ? flag('--voices', '')
       .split(',')
       .map((v) => v.trim())
-  : (CANDIDATES[lang] || CANDIDATES.en).map(([v]) => v)
+  : pool.map(([v]) => v)
 
 const reminder = () => {
   const config = loadConfig()
-  const own = config.at(config.paths.channel)
+  const own = config.channelMd
   const md = readFileSync(
     own && existsSync(own) ? own : join(skill, 'references/channel.example.md'),
     'utf8'
@@ -56,8 +68,10 @@ const text = flag(
     : reminder()
 )
 
-const available = new Set(listVoices())
-const missing = voices.filter((v) => !available.has(v))
+// cloud voices (openai:<voice>, elevenlabs:<id>) aren't in Kokoro's list; they need their API key instead
+const kokoroVoices = voices.filter((v) => providerOf(v) === 'kokoro')
+const available = new Set(kokoroVoices.length ? listVoices() : [])
+const missing = kokoroVoices.filter((v) => !available.has(v))
 if (missing.length) {
   console.error(`voice-samples: not in voices-v1.0.bin: ${missing.join(', ')}`)
   console.error(`available: ${[...available].join(', ')}`)
@@ -67,9 +81,19 @@ if (missing.length) {
 const outDir = join(ttsDir, 'samples')
 const speed = Number(flag('--speed', '0.92'))
 for (const voice of voices) {
-  const d = speak([{ id: voice, text }], outDir, { voice, speed })
-  const note = (CANDIDATES[lang] || []).find(([v]) => v === voice)?.[1] || ''
+  const id = voice.replace(/[^\w.-]/g, '_')
+  const cloud = providerOf(voice) === 'openai'
+  // a cloud sample is cached per voice and language, so the English and Spanish samples don't overwrite each other
+  const sid = cloud ? `${id}-${lang}` : id
+  const d = speak([{ id: sid, text }], outDir, {
+    voice,
+    speed,
+    lang: langFor(voice, lang),
+    instructions: cloud ? NARRATOR[lang === 'es' ? 'es' : 'en'] : ''
+  })
+  const note =
+    [...(CANDIDATES[lang] || []), ...CANDIDATES.openai].find(([v]) => v === voice)?.[1] || ''
   console.log(
-    `${voice}\t${d[voice].toFixed(1)}s\t${join(outDir, voice + '.wav')}${note ? '\t' + note : ''}`
+    `${voice}\t${d[sid].toFixed(1)}s\t${join(outDir, sid + '.wav')}${note ? '\t' + note : ''}`
   )
 }

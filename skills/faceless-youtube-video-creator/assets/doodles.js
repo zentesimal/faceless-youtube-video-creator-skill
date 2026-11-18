@@ -18,23 +18,29 @@
     brown: '#b97a57',
     white: '#ffffff'
   }
-  const ink = 'stroke="#111" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"'
-  const f = (c) => `fill="${PAINT[c] || c}" ${ink}`
+  // Every colour is a CSS variable (--dz-<name>, --dz-ink) that falls back to the Paint colour: the paint look
+  // keeps the flat Paint palette, and the other looks map the variables to their theme (slide.html, thumbnail.html).
+  const C = (c) =>
+    PAINT[c] ? `var(--dz-${c}, ${PAINT[c]})` : c === 'ink' ? 'var(--dz-ink, #111)' : c
+  const stroke =
+    'stroke:var(--dz-ink, #111);stroke-width:9px;stroke-linecap:round;stroke-linejoin:round'
+  const ink = `style="${stroke}"`
+  const f = (c) => `style="fill:${C(c)};${stroke}"`
   const line = (d) => `<path d="${d}" fill="none" ${ink}/>`
-  const txt = (x, y, t, size = 64, c = '#111') =>
-    `<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" fill="${c}" style="font-family:var(--display)">${t}</text>`
+  const txt = (x, y, t, size = 64, c = 'ink') =>
+    `<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" style="fill:${C(c)};font-family:var(--display)">${t}</text>`
   const DOODLES = {
     sheet: () =>
       `<rect x="40" y="40" width="320" height="230" ${f('white')}/><rect x="40" y="40" width="320" height="50" ${f('blue')}/>` +
       line('M40 136h320M40 182h320M40 228h320M150 40v230M260 40v230') +
       line('M178 112l14 14 26-30') +
       line('M178 158l14 14 26-30') +
-      `<path d="M180 200l34 22M214 200l-34 22" fill="none" stroke="#ed1c24" stroke-width="9" stroke-linecap="round"/>`,
+      `<path d="M180 200l34 22M214 200l-34 22" fill="none" style="stroke:var(--dz-red, #ed1c24)" stroke-width="9" stroke-linecap="round"/>`,
     pages: () =>
       `<rect x="110" y="60" width="190" height="230" transform="rotate(-10 205 175)" ${f('white')}/>` +
       `<rect x="110" y="50" width="190" height="230" transform="rotate(6 205 165)" ${f('white')}/>` +
       `<rect x="105" y="40" width="190" height="230" ${f('white')}/>` +
-      txt(200, 185, '?', 110, '#c3c3c3'),
+      txt(200, 185, '?', 110, 'gray'),
     brochure: () =>
       `<path d="M60 70l100-24v220l-100 24z" ${f('pink')}/><path d="M160 46l90 24v220l-90-24z" ${f('white')}/><path d="M250 70l100-24v220l-100 24z" ${f('pink')}/>` +
       `<circle cx="205" cy="120" r="26" ${f('yellow')}/>` +
@@ -54,17 +60,17 @@
     checklist: () =>
       `<rect x="90" y="40" width="220" height="250" rx="16" ${f('brown')}/><rect x="112" y="68" width="176" height="204" ${f('white')}/><rect x="160" y="26" width="80" height="34" rx="10" ${f('gray')}/>` +
       line('M130 110l14 14 24-28M190 112h80M130 170l14 14 24-28M190 172h80') +
-      `<path d="M132 220l30 30M162 220l-30 30" fill="none" stroke="#ed1c24" stroke-width="9" stroke-linecap="round"/>` +
+      `<path d="M132 220l30 30M162 220l-30 30" fill="none" style="stroke:var(--dz-red, #ed1c24)" stroke-width="9" stroke-linecap="round"/>` +
       line('M190 236h80'),
     magnifier: () =>
       `<circle cx="170" cy="140" r="90" ${f('blue')}/><circle cx="170" cy="140" r="58" ${f('white')}/>` +
-      `<path d="M236 206l80 80" stroke="#111" stroke-width="40" stroke-linecap="round"/><path d="M236 206l80 80" stroke="#b97a57" stroke-width="22" stroke-linecap="round"/>`,
+      `<path d="M236 206l80 80" style="stroke:var(--dz-ink, #111)" stroke-width="40" stroke-linecap="round"/><path d="M236 206l80 80" style="stroke:var(--dz-brown, #b97a57)" stroke-width="22" stroke-linecap="round"/>`,
     question: () =>
       `<path d="M60 60h280a20 20 0 0 1 20 20v130a20 20 0 0 1-20 20H170l-60 50v-50H60a20 20 0 0 1-20-20V80a20 20 0 0 1 20-20z" ${f('yellow')}/>` +
       txt(200, 190, '?', 130),
     button: () =>
       `<rect x="50" y="90" width="300" height="100" rx="40" ${f('green')}/>` +
-      txt(200, 158, 'Advanced?', 44, '#fff') +
+      `<path d="M110 140h120" style="stroke:var(--dz-white, #fff);stroke-width:14px;stroke-linecap:round"/>` +
       `<path d="M250 170l0 100 26-24 20 44 22-10-20-44 34-2z" ${f('white')}/>`,
     browser: () =>
       `<rect x="40" y="40" width="320" height="230" rx="14" ${f('white')}/>` +
@@ -83,7 +89,7 @@
     clock: () =>
       `<circle cx="200" cy="155" r="120" ${f('white')}/>` +
       line('M200 155V80M200 155l55 30') +
-      `<circle cx="200" cy="155" r="10" fill="#111"/>` +
+      `<circle cx="200" cy="155" r="10" style="fill:var(--dz-ink, #111)"/>` +
       line('M200 46v14M200 250v14M92 155h14M294 155h14'),
     warning: () => `<path d="M200 30l170 260H30z" ${f('yellow')}/>` + txt(200, 255, '!', 150),
     bulb: () =>
@@ -94,14 +100,14 @@
       `<path d="M200 70c-50-30-110-30-160-10v210c50-20 110-20 160 10z" ${f('purple')}/><path d="M200 70c50-30 110-30 160-10v210c-50-20-110-20-160 10z" ${f('white')}/>` +
       line('M230 110h100M230 150h100M230 190h80'),
     score: () =>
-      `<circle cx="200" cy="150" r="125" ${f('green')}/>` + txt(200, 185, '100', 110, '#fff'),
+      `<circle cx="200" cy="150" r="125" ${f('green')}/>` + txt(200, 185, '100', 110, 'white'),
     refresh: () =>
       line('M300 120a110 110 0 0 0-200-10M100 190a110 110 0 0 0 200 10') +
       `<path d="M86 60l14 54 52-18z" ${f('green')}/><path d="M314 250l-14-54-52 18z" ${f('green')}/>`,
     tag: () =>
       `<path d="M60 110h220l70 50-70 50H60z" ${f('orange')}/>` +
-      txt(170, 182, 'worker', 56) +
-      `<path d="M70 160h200" stroke="#ed1c24" stroke-width="12" stroke-linecap="round"/>`,
+      `<circle cx="96" cy="160" r="14" ${f('white')}/>` +
+      line('M140 140h110M140 180h80'),
     inbox: () =>
       `<path d="M60 150l50-90h180l50 90v120H60z" ${f('blue')}/><path d="M60 150h90l20 40h60l20-40h90" fill="none" ${ink}/>` +
       `<rect x="140" y="20" width="120" height="90" ${f('white')}/>` +

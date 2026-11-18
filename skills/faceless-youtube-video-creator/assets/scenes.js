@@ -4,7 +4,8 @@
 // Everything is flat vector art in the theme's colours (CSS variables set by slide.html), so a scene matches
 // every look: the brand palette, a story theme, or the MS Paint look (slide.html roughens it with #wobble).
 // Groups carry classes the animation layer in slide.html moves: .bgl (background), .cloud, .star, .float,
-// and per character .pop (entrance) > .act (pose action) > .bob (idle), .arm, .eyes, .x (extras).
+// .aurora, .glow, and per character .pop (entrance) > .act (pose action) > .bob (idle), .arm, .eyes, .x (extras).
+// .plx[data-depth] groups are the camera's depth layers (0 = far sky … 1 = the ground and the cast).
 //
 //   window.scene(spec, { textMode: 'none' | 'left' | 'top' }) →
 //     { svg, dark, ground, cast: [{ who, pose, x, headTop, say }] }
@@ -68,7 +69,292 @@
     `<path d="M-60 -150 L60 -150 L46 0 L-46 0 Z" ${s('var(--accent)')}/>` +
     `</g>`
 
+  // ---------- layered worlds (illustrated-explainer look): flat vector, gradients, glow, depth layers ----------
+  // These backgrounds return `layers` ([{depth, svg}], far → near) instead of one `svg`, so the camera can move
+  // them at different speeds (parallax; slide.html › camera). depth 0 = the sky, 1 = the ground the cast stands
+  // on (it moves with the cast, so feet never slide). Colours come from the theme, like every other scene.
+  const lin = (id, stops, vertical = true) =>
+    `<linearGradient id="${id}" x1="0" y1="0" x2="${vertical ? 0 : 1}" y2="${vertical ? 1 : 0}">` +
+    stops
+      .map(([o, c, a = 1]) => `<stop offset="${o}" style="stop-color:${c};stop-opacity:${a}"/>`)
+      .join('') +
+    `</linearGradient>`
+  const rad = (id, c, a = 0.85) =>
+    `<radialGradient id="${id}"><stop offset="0" style="stop-color:${c};stop-opacity:${a}"/>` +
+    `<stop offset="1" style="stop-color:${c};stop-opacity:0"/></radialGradient>`
+  // a soft flat cloud with a lit rim (no outline)
+  const pcloud = (x, y, k, fill, rim) =>
+    `<g class="cloud" transform="translate(${x} ${y}) scale(${k})">` +
+    `<path d="M-170 40 C-200 0 -150 -40 -100 -26 C-90 -86 0 -96 30 -40 C60 -76 150 -60 150 -6 C200 -6 210 40 170 40 Z" ${nf(fill)}/>` +
+    `<path d="M-150 10 C-140 -18 -112 -26 -96 -20 C-80 -70 -4 -80 24 -30 C40 -54 100 -50 120 -18" ${ln(rim, 7)}/></g>`
+  // a ridge line of peaks across the frame, filled down to the bottom
+  const ridge = (base, h, n, seed, fill, snow) => {
+    const r = rng(seed)
+    let d = `M-40 ${base}`
+    let caps = ''
+    const step = 2000 / n
+    for (let i = 0; i < n; i++) {
+      const x0 = -40 + i * step
+      const px = x0 + step * (0.35 + r() * 0.3)
+      const py = base - h * (0.55 + r() * 0.45)
+      d += ` L${px.toFixed(0)} ${py.toFixed(0)} L${(x0 + step).toFixed(0)} ${base - h * r() * 0.15}`
+      if (snow) {
+        const w = step * 0.16
+        caps += `<path d="M${(px - w).toFixed(0)} ${(py + w * 0.9).toFixed(0)} L${px.toFixed(0)} ${py.toFixed(0)} L${(px + w).toFixed(0)} ${(py + w * 0.9).toFixed(0)} L${(px + w * 0.4).toFixed(0)} ${(py + w * 0.7).toFixed(0)} L${px.toFixed(0)} ${(py + w).toFixed(0)} L${(px - w * 0.5).toFixed(0)} ${(py + w * 0.65).toFixed(0)} Z" ${nf(snow)}/>`
+      }
+    }
+    return `<path d="${d} L1960 1100 L-40 1100 Z" ${nf(fill)}/>` + caps
+  }
+  // a soft rolling band (hills or waves) with an optional bright crest line
+  const band = (y, amp, waves, phase, fill, crest) => {
+    let d = `M-60 ${y}`
+    const seg = 2040 / waves
+    for (let i = 0; i < waves; i++) {
+      const x = -60 + i * seg
+      const up = (i + phase) % 2 ? amp : -amp
+      d += ` C${(x + seg * 0.35).toFixed(0)} ${y + up} ${(x + seg * 0.65).toFixed(0)} ${y + up} ${(x + seg).toFixed(0)} ${y}`
+    }
+    const top = d
+    return (
+      `<path d="${top} L1980 1100 L-60 1100 Z" ${nf(fill)}/>` +
+      (crest ? `<path d="${top}" ${ln(crest, 5)} opacity=".8"/>` : '')
+    )
+  }
+  const trees = (xs, base, color, k = 1) =>
+    xs
+      .map(
+        (x) =>
+          `<path d="M${x} ${base - 70 * k} L${x + 22 * k} ${base} L${x - 22 * k} ${base} Z" ${nf(color)}/>`
+      )
+      .join('')
+
+  const WORLD = {
+    // golden-hour valley: peach sky, a big low sun, misty ridges, a grassy foreground
+    dawn: () => ({
+      ground: 930,
+      defs:
+        lin('sc-dawn-sky', [
+          [0, mix('var(--second)', 70, 'var(--main)')],
+          [0.45, mix('var(--main)', 55, '#fff')],
+          [0.78, mix('var(--accent)', 45, '#fff')],
+          [1, mix('var(--accent)', 75, '#fff')]
+        ]) + rad('sc-dawn-sun', mix('var(--accent)', 40, '#fff'), 0.9),
+      layers: [
+        {
+          depth: 0,
+          svg:
+            `<rect width="1920" height="1080" fill="url(#sc-dawn-sky)"/>` +
+            `<circle class="glow" cx="1400" cy="600" r="380" fill="url(#sc-dawn-sun)"/>` +
+            `<circle cx="1400" cy="600" r="86" ${nf(mix('var(--accent)', 18, '#fff'))}/>`
+        },
+        {
+          depth: 0.12,
+          svg:
+            pcloud(
+              380,
+              230,
+              1.1,
+              mix('var(--second)', 30, 'var(--accent)'),
+              mix('var(--accent)', 30, '#fff')
+            ) +
+            pcloud(
+              1020,
+              150,
+              0.8,
+              mix('var(--second)', 35, 'var(--main)'),
+              mix('var(--accent)', 40, '#fff')
+            ) +
+            pcloud(
+              1700,
+              330,
+              0.7,
+              mix('var(--second)', 30, 'var(--accent)'),
+              mix('var(--accent)', 30, '#fff')
+            )
+        },
+        {
+          depth: 0.3,
+          svg: ridge(
+            700,
+            230,
+            7,
+            21,
+            mix('var(--main)', 38, '#fff'),
+            mix('var(--accent)', 12, '#fff')
+          )
+        },
+        {
+          depth: 0.55,
+          svg:
+            band(770, 50, 4, 0, mix('var(--main)', 62, 'var(--second)')) +
+            trees([210, 260, 1480, 1530, 1580], 760, mix('var(--main)', 45, 'var(--second)'), 0.9)
+        },
+        {
+          depth: 1,
+          svg: band(
+            930,
+            26,
+            3,
+            1,
+            mix('var(--second)', 72, 'var(--main)'),
+            mix('var(--accent)', 55, '#fff')
+          )
+        }
+      ]
+    }),
+    // dusk at sea: teal sky to peach horizon, far icebergs, rolling wave bands with gold crests, an ice floe
+    sea: () => ({
+      ground: 930,
+      defs:
+        lin('sc-sea-sky', [
+          [0, mix('var(--main)', 65, '#fff')],
+          [0.62, mix('var(--accent)', 38, '#fff')],
+          [1, mix('var(--accent)', 60, '#fff')]
+        ]) +
+        lin('sc-sea-water', [
+          [0, mix('var(--main)', 70, '#fff')],
+          [1, mix('var(--main)', 70, 'var(--second)')]
+        ]) +
+        rad('sc-sea-sun', mix('var(--accent)', 35, '#fff'), 0.8),
+      layers: [
+        {
+          depth: 0,
+          svg:
+            `<rect width="1920" height="1080" fill="url(#sc-sea-sky)"/>` +
+            `<circle class="glow" cx="300" cy="560" r="330" fill="url(#sc-sea-sun)"/>` +
+            `<circle cx="300" cy="560" r="60" ${nf(mix('var(--accent)', 15, '#fff'))}/>` +
+            `<rect y="560" width="1920" height="520" fill="url(#sc-sea-water)"/>`
+        },
+        {
+          depth: 0.1,
+          svg:
+            pcloud(
+              900,
+              180,
+              1,
+              mix('var(--main)', 55, 'var(--second)'),
+              mix('var(--accent)', 35, '#fff')
+            ) +
+            pcloud(
+              1650,
+              260,
+              0.75,
+              mix('var(--main)', 55, 'var(--second)'),
+              mix('var(--accent)', 35, '#fff')
+            )
+        },
+        {
+          depth: 0.25,
+          svg:
+            `<path d="M1240 566 L1300 520 L1340 540 L1380 506 L1450 566 Z" ${nf(mix('var(--main)', 12, '#fff'))}/>` +
+            `<path d="M1300 520 L1340 540 L1330 566 L1280 566 Z" ${nf(mix('var(--main)', 30, '#fff'))}/>` +
+            `<path d="M1640 566 L1690 530 L1740 566 Z" ${nf(mix('var(--main)', 12, '#fff'))}/>` +
+            `<path d="M80 566 L120 540 L150 552 L190 566 Z" ${nf(mix('var(--main)', 15, '#fff'))}/>`
+        },
+        {
+          depth: 0.4,
+          svg: band(640, 14, 6, 0, mix('var(--main)', 75, '#fff'), mix('var(--accent)', 55, '#fff'))
+        },
+        {
+          depth: 0.6,
+          svg: band(
+            740,
+            22,
+            5,
+            1,
+            mix('var(--main)', 82, 'var(--second)'),
+            mix('var(--accent)', 60, '#fff')
+          )
+        },
+        {
+          depth: 0.8,
+          svg: band(
+            860,
+            30,
+            4,
+            0,
+            mix('var(--main)', 62, 'var(--second)'),
+            mix('var(--accent)', 65, '#fff')
+          )
+        },
+        {
+          depth: 1,
+          svg:
+            `<ellipse cx="960" cy="950" rx="560" ry="70" ${nf(mix('var(--main)', 30, '#fff'))}/>` +
+            `<path d="M400 930 C520 905 1400 905 1520 930 C1400 952 520 952 400 930 Z" ${nf('#fff')}/>` +
+            band(
+              1040,
+              18,
+              4,
+              1,
+              mix('var(--main)', 50, 'var(--second)'),
+              mix('var(--accent)', 60, '#fff')
+            )
+        }
+      ]
+    }),
+    // polar night: deep sky, stars, glowing aurora ribbons, lavender peaks, a snowy foreground
+    aurora: () => ({
+      ground: 930,
+      dark: true,
+      defs:
+        lin('sc-aur-sky', [
+          [0, mix('var(--second)', 80, '#000')],
+          [1, mix('var(--second)', 70, 'var(--main)')]
+        ]) +
+        lin(
+          'sc-aur-band',
+          [
+            [0, '#7fffd4', 0],
+            [0.3, mix('var(--main)', 40, '#7fffd4'), 0.85],
+            [0.7, mix('#b48cff', 60, 'var(--main)'), 0.7],
+            [1, '#b48cff', 0]
+          ],
+          false
+        ) +
+        `<filter id="sc-aur-blur" x="-10%" y="-60%" width="120%" height="220%"><feGaussianBlur stdDeviation="22"/></filter>`,
+      layers: [
+        {
+          depth: 0,
+          svg: `<rect width="1920" height="1080" fill="url(#sc-aur-sky)"/>${stars(120, 17, 760)}`
+        },
+        {
+          depth: 0.1,
+          svg:
+            `<g filter="url(#sc-aur-blur)"><path class="aurora" d="M-100 330 C300 160 700 420 1050 250 S1700 170 2020 300" style="fill:none;stroke:url(#sc-aur-band);stroke-width:110"/>` +
+            `<path class="aurora" d="M-100 470 C400 330 800 520 1200 380 S1800 360 2020 430" style="fill:none;stroke:url(#sc-aur-band);stroke-width:60;opacity:.6"/></g>`
+        },
+        {
+          depth: 0.3,
+          svg: ridge(
+            760,
+            300,
+            6,
+            9,
+            mix('var(--second)', 52, '#b9b4e6'),
+            mix('var(--second)', 12, '#fff')
+          )
+        },
+        { depth: 0.6, svg: band(830, 40, 4, 0, mix('var(--second)', 30, '#cfd6f2')) },
+        {
+          depth: 1,
+          svg: band(
+            930,
+            22,
+            3,
+            1,
+            mix('var(--second)', 10, '#f2f5fc'),
+            mix('var(--main)', 30, '#fff')
+          )
+        }
+      ]
+    })
+  }
+
   const BG = {
+    // nothing behind the cast: used to stand characters on top of a generated picture
+    none: () => ({ ground: 930, svg: '' }),
+    ...WORLD,
     plain: () => ({
       ground: 920,
       svg:
@@ -241,11 +527,15 @@
         spark(hw * 1.1, top - 10, 28, 'var(--accent)') +
         spark(hw * 0.4, top - 50, 16, 'var(--main)')
       )
+    // a thought: two small trailing dots, then a cloud with "…" in it (loose circles alone read as stray bubbles)
     if (kind === 'dots')
       return (
-        `<circle class="x" cx="${hw * 0.75}" cy="${top - 4}" r="9" ${s('#fff')}/>` +
-        `<circle class="x" cx="${hw * 1.0}" cy="${top - 36}" r="14" ${s('#fff')}/>` +
-        `<circle class="x" cx="${hw * 1.35}" cy="${top - 80}" r="22" ${s('#fff')}/>`
+        `<circle class="x" cx="${hw * 0.72}" cy="${top - 2}" r="7" ${s('#fff')}/>` +
+        `<circle class="x" cx="${hw * 0.95}" cy="${top - 28}" r="11" ${s('#fff')}/>` +
+        `<g transform="translate(${hw * 1.32} ${top - 82})"><g class="x">` +
+        `<path d="M-46 16 A20 20 0 0 1 -36 -18 A27 27 0 0 1 10 -32 A23 23 0 0 1 48 -8 A18 18 0 0 1 38 20 Z" ${s('#fff')}/>` +
+        [-16, 0, 16].map((dx) => `<circle cx="${dx}" cy="-2" r="4.5" ${nf(LINE)}/>`).join('') +
+        `</g></g>`
       )
     if (kind === 'drop')
       return `<path class="x drop" d="M${hw * 0.85} ${top + 60} q-16 26 0 36 q16 -10 0 -36 Z" ${s('#7ec8f2')}/>`
@@ -274,7 +564,9 @@
     // the ghost: a friendly mascot (the default lead; the config's look.mascot can pick another)
     ghost: (p, o) => {
       const k = 1.4
-      const nub = `<path d="M-14 -6 C-19 22 -11 50 0 60 C11 50 19 22 14 -6 Z" ${s('var(--sc-ghost)')}/>`
+      // a rounded little arm (closed at the shoulder too: it sits over the body, so a flat end would show)
+      const nub = `<path d="M-14 0 A14 14 0 0 1 14 0 C16 24 9 48 0 60 C-9 48 -16 24 -14 0 Z" ${s('var(--sc-ghost)')}/>`
+
       const body =
         `<path d="M-80 0 V-132 A80 80 0 0 1 80 -132 V0 q-13.3 -18 -26.7 0 q-13.3 18 -26.7 0 q-13.3 -18 -26.7 0 q-13.3 18 -26.7 0 q-13.3 -18 -26.7 0 q-13.3 18 -26.7 0 Z" ${s('var(--sc-ghost)')}/>` +
         `<path d="M40 -196 A80 80 0 0 1 77 -132 V-16 Q62 -40 58 -118 Q54 -170 40 -196 Z" ${nf(mix(LINE, 14, 'transparent'))}/>`
@@ -299,10 +591,12 @@
         hw: 80 * k,
         float: true,
         art:
+          // the arms are drawn over the body's edge (behind it, only white slivers showed, like stray bubbles);
+          // the face stays on top of them
           `<g transform="scale(${k})">` +
-          armG('L', -76, -92, p.L, nub, 14) +
-          armG('R', 76, -92, p.R, nub, 14) +
           body +
+          armG('L', -64, -92, p.L, nub, 14) +
+          armG('R', 64, -92, p.R, nub, 14) +
           f +
           `</g>`
       }
@@ -501,19 +795,27 @@
       const px = typeof p.at === 'number' ? p.at : (AT[p.at] ?? free[i] ?? 250 + i * 300)
       propSvg += `<g class="prop" transform="translate(${px} ${ground}) scale(${p.size || 1})"><g class="pin">${draw()}</g></g>`
     })
+    // depth groups (.plx) for the camera: a layered world keeps its layers; any other background is one layer
+    // at depth 1, so it moves with the cast (the floor never slides under their feet)
+    const bgLayers = bg.layers || [{ depth: 1, svg: bg.svg }]
     return {
       svg:
         `<svg class="scene" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">` +
-        `<g class="bgall">${bg.svg}</g>${propSvg}${figs}</svg>`,
+        (bg.defs ? `<defs>${bg.defs}</defs>` : '') +
+        `<g class="bgall">${bgLayers.map((l) => `<g class="plx" data-depth="${l.depth}">${l.svg}</g>`).join('')}</g>` +
+        `<g class="plx" data-depth="1">${propSvg}${figs}</g></svg>`,
       dark: !!bg.dark,
+      layered: !!bg.layers,
       ground,
       cast: placed
     }
   }
   window.sceneIsDark = (S) =>
     typeof S.bg === 'string' ? !!(BG[S.bg] && BG[S.bg]().dark) : !!(S.bg && S.bg.dark)
+  window.sceneIsLayered = (S) => typeof S.bg === 'string' && !!WORLD[S.bg]
   window.SCENE = {
     backgrounds: Object.keys(BG),
+    worlds: Object.keys(WORLD),
     characters: Object.keys(CHAR),
     poses: Object.keys(POSES),
     props: Object.keys(PROPS)

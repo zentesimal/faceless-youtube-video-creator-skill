@@ -91,6 +91,21 @@
       #stage.light .headline {
         text-shadow: none;
       }
+      /* doodles outside the paint look: the Paint colours become the theme's (assets/doodles.js reads --dz-*) */
+      #stage:not(.paint) {
+        --dz-ink: var(--second);
+        --dz-white: color-mix(in srgb, var(--ground) 30%, #fff);
+        --dz-yellow: var(--accent);
+        --dz-orange: color-mix(in srgb, var(--accent) 75%, var(--second));
+        --dz-red: color-mix(in srgb, #c0392b 75%, var(--ground));
+        --dz-green: color-mix(in srgb, var(--main) 55%, var(--accent));
+        --dz-blue: var(--main);
+        --dz-indigo: var(--main);
+        --dz-purple: color-mix(in srgb, var(--main) 70%, var(--second));
+        --dz-pink: color-mix(in srgb, var(--accent) 35%, var(--ground));
+        --dz-gray: color-mix(in srgb, var(--second) 22%, var(--ground));
+        --dz-brown: color-mix(in srgb, var(--accent) 60%, var(--second));
+      }
       /* paint look (MS Paint, hand-drawn): white canvas, ink text, yellow marker, a doodle instead of the ghost */
       #stage.paint {
         --bg: var(--ground);

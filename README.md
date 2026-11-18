@@ -25,7 +25,7 @@ Built and used by [Zentesimal](https://zentesimal.com/?utm_source=github&utm_med
    Make a YouTube video about why AI models make things up
    ```
 
-   Each video starts with four questions: the topic (type one, or pick from your topic sheet), the length (8–20 minutes), the language (English or Spanish for now), and whether to research it first. The first time, it also asks four questions (channel name, what the channel is about, the look, extras) and saves them in `faceless-youtube.config.json`. Then it picks the angle with you, writes the script, renders, and hands you the files.
+   The first time, it asks four questions (channel name, what the channel is about, the look, extras) and saves them in `faceless-youtube.config.json`. Every video then starts with the same short setup: how technical your viewer is, the topic (type one, or pick from your topic sheet), the length (8–20 minutes), the language (English or Spanish for now) and whether to research it first; then free or OpenAI (the free local voice and vector scenes, or an OpenAI voice that acts the script plus generated illustrations; your key goes in the folder's `.env`), the look, the pace, the voice (with samples) and animations. Then it picks the angle with you, writes the script, renders, and hands you the files.
 
 ## What you get
 
@@ -42,12 +42,16 @@ For each video, in `videos/<date>-<slug>/`:
 - **Topics with evidence**: from your idea, a keyword or search-query CSV, audience notes, or a topic sheet it keeps for you (`youtube-topics.csv`: ideas, statuses, links and 30-day results). It starts from three example rows (growing flowers, what Zentesimal does, peeling potatoes) that you replace with your own.
 - **Research you can check**: optionally, before any script, it researches the topic and shows you the findings with a numbered source list (title, link, dates, primary or secondary); you approve, dig deeper or change the angle. The sources end up in the video's description.
 - **A script that holds attention**: hook, intro, 2–5 ideas (as many as the length holds) with proof on screen, a mid-video subscribe ask, summary, outro; a checker flags missing parts and wrong lengths.
-- **Free local voiceover**: Kokoro voices (English and Spanish), no API key; it keeps talking (no dead air between slides), with a short beat after the lines that need to land.
+- **Free local voiceover**: Kokoro voices (English and Spanish), no API key, or optionally a paid OpenAI or ElevenLabs voice with your own key; it keeps talking (no dead air between slides), with a short beat after the lines that need to land.
+- **A voice with emotion**: every script gets an emotional arc (a hook that builds intrigue and suspense, a surprise on each idea's reveal, a serious catch, a warm goodbye), marked line by line with `> TONE` cues. Every voice gets the timing (a held breath before the reveal, slower suspense, quicker wins); OpenAI and ElevenLabs voices act it too. The checker warns about a flat read or over-acting; `"expressive"` in `style.json` turns it up or down.
 - **Slides that move**: pace 1–5, headlines that rise, lists that build, numbers that count up, doodles that draw themselves. Animations are optional.
 - **Characters and scenes**: a mascot, people and a robot in 9 poses with speech bubbles, 8 backgrounds and props, all drawn in your colours. Free and offline.
 - **Thumbnails in styles common on the home feed**: a big outlined question, a documentary title, a moody one-liner or a question card, over the same scenes as the slides.
-- **Your look**: your palette, fonts and logo (`clean`), a hand-drawn MS Paint look (`paint-explainer`), or a new look built from a folder of images you like.
+- **Your look**: your palette, fonts and logo (`clean`), a hand-drawn MS Paint look (`paint-explainer`), pencil-and-ink sketches on warm paper (`sketch-explainer`), a data-first magazine look (`editorial`), an animated flat-vector world with a moving camera, particles and map pins (`illustrated-explainer`), or a new look built from a folder of images you like. See [Looks](#looks).
+- **Asks before it writes**: every video starts with the same short questions (viewer level, topic, length, language, research; then free or OpenAI, the look from the `styles/` folder with previews, the pace, the voice with samples and animations), and the checker won't pass a script until the answers are saved.
+- **Made for your viewer**: it asks first how technical your viewer is (0–5) and writes to that level: plain words and everyday comparisons for newcomers, the precise vocabulary and a deeper dive for experts. Processes and loops become animated `flow` diagrams that build with the voice.
 - **Optional generated illustrations** with the OpenAI Image API, in your look's style.
+- **A channel kit**: one `channel/` folder with your channel brief, logo, avatar and the description, keywords and upload defaults to paste into YouTube Studio.
 - **Upload-ready metadata**: `youtube.json` with the title, description (chapters included), tags, category and disclosure answers to paste into YouTube Studio, checked against YouTube's limits.
 - **Never uploads anything.** You review and publish.
 
@@ -55,27 +59,68 @@ For each video, in `videos/<date>-<slug>/`:
 
 `faceless-youtube.config.json` in your project (created by the first run; full example: [`references/faceless-youtube.config.example.json`](skills/faceless-youtube-video-creator/references/faceless-youtube.config.example.json)).
 
-| Key                                                          | Default                                            | What it sets                                                                  |
-| ------------------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `identity.name`, `identity.handle`                           | `My Channel`                                       | the wordmark, the Subscribe slide, the description footer                     |
-| `identity.promise`, `audience`, `pillars`                    | —                                                  | what topics fit and how the channel lines sound                               |
-| `look.preset`                                                | `clean`                                            | the default look (`clean`, `paint-explainer`, or your own in `styles/`)       |
-| `look.colors`, `look.fonts`, `look.logo`                     | neutral blue/amber, Fraunces + Inter, none         | your brand on every slide and thumbnail                                       |
-| `look.mascot`                                                | `ghost`                                            | the default character in scenes (`ghost`, `person`, `robot`)                  |
-| `video.minutes`, `pace`, `voice`, `animate`, `illustrations` | `15`, `3`, `af_heart`, `auto`, `false`             | defaults for each video (asked again per video; length 8–20 min)              |
-| `paths.workspace`, `topics`, `channel`                       | `./videos`, `./youtube-topics.csv`, `./channel.md` | where things live                                                             |
-| `models.image`                                               | `gpt-image-2.5-sunburst`                           | the image model for generated illustrations                                   |
-| `credit`                                                     | `true`                                             | the one-line credit at the end of generated descriptions (`false` removes it) |
-| `integrations.zentesimal`                                    | `false`                                            | topics from your customers' real questions (below)                            |
+| Key                                                          | Default                                                                 | What it sets                                                                                                                      |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `identity.name`, `identity.handle`                           | `My Channel`                                                            | the wordmark, the Subscribe slide, the description footer                                                                         |
+| `identity.promise`, `audience`, `pillars`                    | —                                                                       | what topics fit and how the channel lines sound                                                                                   |
+| `look.preset`                                                | `clean`                                                                 | the default look (`clean`, `paint-explainer`, `sketch-explainer`, `editorial`, `illustrated-explainer`, or your own in `styles/`) |
+| `look.colors`, `look.fonts`, `look.logo`                     | neutral blue/amber, Fraunces + Inter, `channel/logo.*`                  | your brand on every slide and thumbnail                                                                                           |
+| `look.mascot`                                                | `ghost`                                                                 | the default character in scenes (`ghost`, `person`, `robot`)                                                                      |
+| `video.minutes`, `pace`, `voice`, `animate`, `illustrations` | `15`, `3`, `af_heart`, `auto`, `false`                                  | defaults for each video (asked again per video; length 8–20 min)                                                                  |
+| `paths.workspace`, `topics`, `kit`, `channel`                | `./videos`, `./youtube-topics.csv`, `./channel`, `./channel/channel.md` | where things live                                                                                                                 |
+| `models.image`                                               | `gpt-image-2.5-sunburst`                                                | the image model for generated illustrations                                                                                       |
+| `credit`                                                     | `true`                                                                  | the one-line credit at the end of generated descriptions (`false` removes it)                                                     |
+| `integrations.zentesimal`                                    | `false`                                                                 | topics from your customers' real questions (below)                                                                                |
 
 Per video, `videos/<…>/style.json` overrides the length, look, pace, voice and extras.
 
+## Your channel kit
+
+Everything about your channel lives in one folder, written by the first run and read by every video:
+
+```
+channel/
+├── channel.md           # the brief: name, handle, promise, audience, pillars, channel lines, subscribe asks, description footer
+├── logo.png             # your logo on slides and thumbnails (used when the config's look.logo is empty)
+├── avatar.png           # your profile picture, also on the Subscribe slide (used when identity.avatar is empty)
+├── banner.png           # optional: your channel banner, 2560×1440
+├── watermark.png        # optional: the video watermark, 150×150
+└── youtube-settings.md  # what to paste in YouTube Studio: description, keywords, links, upload defaults
+```
+
+Templates: [`references/channel.example.md`](skills/faceless-youtube-video-creator/references/channel.example.md) and [`references/youtube-settings.example.md`](skills/faceless-youtube-video-creator/references/youtube-settings.example.md). An older project with `channel.md` at its root keeps working.
+
+## Looks
+
+![The five shipped looks: clean, paint-explainer, sketch-explainer, editorial, illustrated-explainer](docs/styles.png)
+
+From top to bottom: `clean`, `paint-explainer`, `sketch-explainer`, `editorial`, `illustrated-explainer`. Each folder in [`styles/`](skills/faceless-youtube-video-creator/styles/README.md) has its own `preview.png`. The previews use the free vector scenes (stills: the `illustrated-explainer` worlds also move, with a camera, particles and map marks). With generated illustrations on, `sketch-explainer` and `illustrated-explainer` pictures follow their own image style.
+
 ## Requirements
 
-- Node 18+, Python 3.10+, `ffmpeg`, and Chrome or Playwright's Chromium.
-- Disk: ~120 MB for the voice model (cached in `videos/.tts/`), ~2 MB per video minute.
-- Network, only for: `npm`/PyPI/github.com on first setup (Playwright, kokoro-onnx, the voice model), `api.openai.com` if you turn on generated illustrations, and web searches the agent makes to check facts. Nothing else; no telemetry.
-- Optional: `OPENAI_API_KEY` (environment or your project's `.env`) for generated illustrations.
+### Required
+
+| What                              | Why                                                                                                                          | Install / check                                                                            |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Claude Code                       | runs the skill                                                                                                               | https://claude.com/claude-code                                                             |
+| Node 18+                          | every script                                                                                                                 | `node -v`                                                                                  |
+| Playwright + Chromium (or Chrome) | renders slides and thumbnails                                                                                                | `npm install --prefix <skill folder>`, then `npx playwright install chromium` if no Chrome |
+| Python 3.10+ with `venv`          | the free Kokoro voice runs in its own virtualenv                                                                             | `python3 --version`                                                                        |
+| `ffmpeg` (with `ffprobe`)         | encodes the video, checks durations                                                                                          | `brew install ffmpeg` · `sudo apt install ffmpeg` · `winget install ffmpeg`                |
+| Network on the first run          | npm, PyPI and github.com: Playwright, kokoro-onnx, the voice model (~120 MB)                                                 | once; cached in `videos/.tts/`                                                             |
+| Disk                              | ~300 MB for the voice setup; ~150 MB per 15-minute video while rendering (clips are cached); the final MP4 is ~2 MB a minute | —                                                                                          |
+
+No YouTube account, API key or login: the skill never talks to YouTube. No telemetry.
+
+### Optional
+
+| What                                                                                                                               | Turns on                                                                                   | Notes                                                                                                                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OPENAI_API_KEY` (environment or your project's `.env`) + access to `api.openai.com`                                               | generated illustrations and scene backgrounds                                              | each picture is a billed OpenAI Image API call; `sketch-explainer` looks best with them. Without a key, scenes stay free and offline                                                                                                                                                 |
+| `OPENAI_API_KEY` or `ELEVENLABS_API_KEY` (environment or your project's `.env`) + access to `api.openai.com` / `api.elevenlabs.io` | paid voices: `"voice": "openai:coral"` or `"elevenlabs:<voice id>"`                        | billed per line by the provider, each line bought once (cached). They act the script's tones (suspense, surprise…); Kokoro, the free default, only times them. Put the keys in your project's `.env` (template: `references/env.example`) and test them with `providers.mjs --check` |
+| Web search and page access in Claude Code                                                                                          | the research step: facts with a numbered, checkable source list                            | pages your network blocks can't be cited; those facts are flagged instead                                                                                                                                                                                                            |
+| A transcript or SEO connector (any)                                                                                                | reading a reference video's transcript for a new look; search volumes for your topic sheet | optional; the skill works from your own CSVs without it                                                                                                                                                                                                                              |
+| Zentesimal connector                                                                                                               | topics from your customers' real questions                                                 | see below                                                                                                                                                                                                                                                                            |
 
 ## Built by Zentesimal
 

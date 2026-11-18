@@ -41,6 +41,13 @@ if (!only && variants.length < 2) console.warn('render-thumbnails: an A/B test n
 
 // the video's look: $W/style.json next to thumbs/ (story = no logo, no mascot, the moodboard's colours and fonts)
 const style = loadStyle(dirname(specDir))
+// the channel name under the title on the compare sheet: always the configured channel for the video's
+// language (config / channel.md), never a name typed into the spec
+const channelName = channel(style).name
+if (spec.channel && spec.channel !== channelName)
+  console.warn(
+    `render-thumbnails: spec "channel" (${spec.channel}) ignored: using the configured channel, ${channelName || '(none configured)'}`
+  )
 const fonts = fontsCss(style)
 const themeCss = (() => {
   const t = style.theme
@@ -138,7 +145,7 @@ if (rendered.length) {
   const cell = (r, w) =>
     `<figure style="width:${w}px"><img src="${dataUrl(r.file)}" style="width:${w}px;height:${Math.round((w * 9) / 16)}px">` +
     (w >= 300
-      ? `<figcaption><b>${esc(spec.title || '')}</b><span>${esc(spec.channel || channel(style).name)}</span></figcaption>`
+      ? `<figcaption><b>${esc(spec.title || '')}</b><span>${esc(channelName)}</span></figcaption>`
       : '') +
     `</figure>`
   const rows = rendered
