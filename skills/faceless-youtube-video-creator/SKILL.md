@@ -50,6 +50,7 @@ Read before writing:
 - the project's **channel kit**, `channel/` (`paths.kit`): `channel.md` (`paths.channel`; template: [`references/channel.example.md`](references/channel.example.md)): what the channel is about, pillars, the channel reminder lines and subscribe asks, description footer, **the single source for reminders**; `logo.*` and `avatar.*` (used when the config names none); `banner.png`, `watermark.png` and `youtube-settings.md` (template: [`references/youtube-settings.example.md`](references/youtube-settings.example.md)) for YouTube Studio.
 - [`references/script-playbook.md`](references/script-playbook.md): structure, timing, the five beats inside every idea, voice, honesty rules, and the `script.md` format the checker reads.
 - [`references/video-playbook.md`](references/video-playbook.md): how `> SLIDE` cues attach slides to the script, the layouts, pictures, animation, the rules (real artifacts only, ≤ 20 s a slide), the voice, the render.
+- [`references/video-ideas.example.csv`](references/video-ideas.example.csv): 12 example video ideas laid out in the script structure, with titles and thumbnail angles; a model for the brief.
 - [`references/thumbnail-playbook.md`](references/thumbnail-playbook.md): the messaging angles (explain, desire, fear, curiosity…), how A and B differ, readability rules, the spec.
 
 ## Workflow
@@ -300,7 +301,7 @@ Score each 1–3 on:
 
 Then ask with `AskUserQuestion` (the only question after §1b): the top 3 (recommended first), each with its working title, pillar, evidence in a few words and the idea count. "Other" lets them steer. Keep the runners-up for the final message.
 
-**`Brainstorm from a CSV` without a file:** don't stop at "send me a CSV". One `AskUserQuestion` with what can stand in for it: `I'll give a file` (a path in "Other"), `Paste notes or questions` (customer questions, comments, a list of ideas: clustered like a queries CSV, with no volumes), `Keyword research` (only when a keyword-data connector such as Manifold is in the session: its search-volume tools on 3–5 seed phrases from the channel's pillars, after a `dry_run` with the credit estimate shown to the user and a `max_credits` cap), and `Ideas from the pillars` (3 topics fitted to the channel's pillars and the viewer level, marked "no search data"). Never invent demand numbers.
+**`Brainstorm from a CSV` without a file:** don't stop at "send me a CSV". One `AskUserQuestion` with what can stand in for it: `I'll give a file` (a path in "Other"), `Paste notes or questions` (customer questions, comments, a list of ideas: clustered like a queries CSV, with no volumes), `Keyword research` (only when a keyword-data connector such as Manifold is in the session: its search-volume tools on 3–5 seed phrases from the channel's pillars, after a `dry_run` with the credit estimate shown to the user and a `max_credits` cap), and `Ideas from the pillars` (3 topics fitted to the channel's pillars and the viewer level, marked "no search data"; `references/video-ideas.example.csv` shows what a strong idea looks like). Never invent demand numbers.
 
 Competition check (optional, **only if the user asks** to validate): if a YouTube search tool or MCP is connected, search the 2–3 finalists' main phrase to see what already ranks; if it costs credits, say the estimate first.
 
@@ -327,7 +328,7 @@ From here on the research is the fact base: `brief.md` cites its sources by numb
 Rename `$W` if the topic changed the slug, and write `$W/brief.md`:
 
 - topic, pillar, target viewer and **viewer level** (0–5, with what it means here: the terms the script may use and the ones it must explain or avoid, the comparisons it will lean on), **the promise** (one sentence the hook, title and thumbnails all keep);
-- the ideas in order, each: claim · why it works · proof on screen (the exact real artifact for the slide) · the catch · bridge to the next. The strongest _easy_ idea goes first, the best one after the mid hook;
+- the ideas in order, each: claim · why it works · proof on screen (the exact real artifact for the slide) · the catch · bridge to the next. The strongest _easy_ idea goes first, the best one after the mid hook. Worked examples of a whole video in this shape, at levels 0–4 and 8–18 min (hook, intro, each idea's claim · proof · catch, mid hook, summary, outro, titles and the two thumbnail angles): `references/video-ideas.example.csv`, one row per video; use it as a model, never as content.
 - **Facts to verify** (with research done, cite its source numbers and check only what it didn't cover): every model name, number, price, limit or availability claim, each checked with a web search (or the user's own files, the CSV, or Zentesimal Internal Q&A for their own product's facts when connected) and listed with its source and date. Unverified ones are flagged, not used. Claims the data doesn't support (e.g. _why_ rows were cut) stay out of the script;
 - the CSV evidence behind the topic.
 
@@ -483,7 +484,7 @@ Every script reads its variables through `scripts/env.mjs`, always in this order
 
 ## Reference files
 
-- `references/channel.example.md` · `references/script-playbook.md` · `references/video-playbook.md` · `references/thumbnail-playbook.md`
+- `references/channel.example.md` · `references/script-playbook.md` · `references/video-playbook.md` · `references/thumbnail-playbook.md` · `references/video-ideas.example.csv`
 - `scripts/style.mjs`: the project config (`faceless-youtube.config.json`, defaults), `style.json`, fonts, theme checks, channel identity, browser (shared by every script).
 - `scripts/csv-profile.mjs`: CSV profile for the brainstorm (no dependencies).
 - `scripts/script-stats.mjs`: structure + length checker, emotion checks (tones) and the setup gate; writes `teleprompter.txt` and `chapters.txt` (estimates).

@@ -45,7 +45,7 @@ How it shapes each part:
 
 ## Structure
 
-The order is fixed. Times are for a 15-minute video; scale the ideas, not the hook or the intro.
+The order is fixed. Times are for a 15-minute video; scale the ideas, not the hook or the intro. [`video-ideas.example.csv`](video-ideas.example.csv) has 12 videos outlined in this structure (one row each, a column per section), at different levels and lengths.
 
 | Section      | Heading in `script.md`        | Length        | Job                                                                                                                                                                                                                      |
 | ------------ | ----------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
