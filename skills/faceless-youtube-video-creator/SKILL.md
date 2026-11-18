@@ -92,7 +92,7 @@ Look for `faceless-youtube.config.json` in the working folder (or a parent). **I
    - `channel/logo.<ext>` and `channel/avatar.<ext>`: copies of the files the user named (then leave `look.logo` and `identity.avatar` out of the config: the kit is found by itself);
    - `channel/youtube-settings.md` from `references/youtube-settings.example.md`: the channel description (≤ 1,000 characters, from the promise, audience and pillars), keywords and upload defaults, ready to paste into Studio. Banner and watermark rows point at `channel/banner.png` and `channel/watermark.png` for when the user adds them.
 
-   Add the workspace folder and `.env` to the project's `.gitignore` (create it if there's none), so a key is never committed. Show the config and the kit's file list in one short block and carry on with the user's request. An older project with `channel.md` at its root keeps working; offer once to move it into `channel/`.
+   Add the workspace folder and `.env` to the project's `.gitignore` (create it if there's none), so a key is never committed. When the project is a clone of the skill's own repo, its `.gitignore` already covers the config, `channel/`, the topic sheet, `videos/`, `.env` and `styles/my-*/`: don't add to it, and never write the user's files into `references/` or a shipped look. Show the config and the kit's file list in one short block and carry on with the user's request. An older project with `channel.md` at its root keeps working; offer once to move it into `channel/`.
 
 **Personalise with Zentesimal (only when it applies).** If the session has the Zentesimal MCP connector (tools such as `ask_internal_qa`, `list_voc_anomalies`, `search_indexed_results`), or the channel is a company's channel about its own product or customers:
 
@@ -222,7 +222,7 @@ Write `$W/style.json` with the preset and the answers (anything else comes from 
 
 Read the preset's `style.md` before writing the script: a story preset changes how the script is told, not only how it looks.
 
-**New look from a folder**: make it a preset (`styles/<name>/`, see `styles/README.md`), or for a one-off put `"style": "story"`, the folder and a `theme` straight into `$W/style.json`. Build the theme from the moodboard:
+**New look from a folder**: make it a preset (`styles/my-<name>/`, see `styles/README.md`: the `my-` prefix keeps the user's own look out of git when the skill is a clone), or for a one-off put `"style": "story"`, the folder and a `theme` straight into `$W/style.json`. Build the theme from the moodboard:
 
 ```bash
 node ${CLAUDE_SKILL_DIR}/scripts/moodboard.mjs <folder> --out $W

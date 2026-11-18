@@ -90,6 +90,34 @@ channel/
 
 Templates: [`references/channel.example.md`](skills/faceless-youtube-video-creator/references/channel.example.md) and [`references/youtube-settings.example.md`](skills/faceless-youtube-video-creator/references/youtube-settings.example.md). An older project with `channel.md` at its root keeps working.
 
+## Working from a clone
+
+If you cloned this repo and run Claude Code inside it, your own files live next to the skill and stay out of git (see [`.gitignore`](.gitignore)), so `git pull` brings updates without conflicts and `git status` stays clean. The first run writes them for you; to set them up by hand, copy the samples:
+
+```bash
+R=skills/faceless-youtube-video-creator/references
+cp $R/faceless-youtube.config.example.json faceless-youtube.config.json   # brand, look, voice, paths
+mkdir -p channel
+cp $R/channel.example.md channel/channel.md                               # name, promise, pillars, channel lines
+cp $R/youtube-settings.example.md channel/youtube-settings.md             # what to paste in YouTube Studio
+cp $R/youtube-topics.example.csv youtube-topics.csv                       # your topic sheet
+cp $R/env.example .env                                                    # only for the paid voices / images
+```
+
+Then drop your `logo.png` and `avatar.png` into `channel/` and edit the copies.
+
+| Ignored                        | What it is                                                         |
+| ------------------------------ | ------------------------------------------------------------------ |
+| `faceless-youtube.config.json` | your channel's config: identity, brand colours and fonts, defaults |
+| `channel/`                     | your channel kit (brief, logo, avatar, banner, YouTube settings)   |
+| `youtube-topics.csv`           | your topic sheet                                                   |
+| `videos/`                      | every video's workspace: scripts, renders, thumbnails              |
+| `.env`, `.env.*`               | your API keys                                                      |
+| `skills/*/styles/my-*/`        | your own looks: name a new preset `my-<name>` and it stays private |
+| `*.local.*`                    | any other personal file, e.g. `notes.local.md`                     |
+
+Never edit the files in `references/` or a shipped look in `styles/` for your channel: copy them first (a look to `styles/my-<name>/`). Edits there are what `git pull` would conflict with.
+
 ## Looks
 
 ![The five shipped looks: clean, paint-explainer, sketch-explainer, editorial, illustrated-explainer](docs/styles.png)

@@ -32,6 +32,8 @@ The project config's `look.preset` picks the default; a video's `style.json` can
 
 ## Adding a preset
 
+Working from a clone of the repo, name your own looks `my-<name>` (e.g. `styles/my-brand/`): `.gitignore` keeps `styles/my-*/` out of git, so your look survives `git pull` and never shows up as a change. Use a plain name only for a look you'll contribute back.
+
 1. `mkdir styles/<name>/images` and drop 6–12 reference frames or images in `images/` (screenshots you took, your own art, licensed stock). They stay local.
 2. Run the moodboard: `node ${CLAUDE_SKILL_DIR}/scripts/moodboard.mjs styles/<name>/images --out styles/<name>`. Read `moodboard-sheet.png` and the images.
 3. Write `style.json` (optionally `theme.paper` for an exact slide background, otherwise the ground is tinted toward `main`; optionally an `imageStyle`: one paragraph describing the look for generated illustrations; without it one is built from the theme colours) (theme roles as in SKILL.md §1b: `ground`, `second` ≥ 4.5:1 on ground, `main` ≥ 3:1, `accent`) and `style.md` (source, mood, palette roles, type, texture, narration rules, slide rules, avoid list).

@@ -1,10 +1,22 @@
+# Tooling
 node_modules/
-videos/
 .tts/
+.DS_Store
+
+# Your own files. Made by the first run or copied from references/*.example.*, and never
+# committed, so `git pull` updates the skill without touching your channel, keys or videos.
 .env
+.env.*
 faceless-youtube.config.json
+/channel/
 channel.md
 youtube-topics.csv
+videos/
+*.local.*
+
+# Your own looks: name them styles/my-<name>/ to keep them out of git
+skills/*/styles/my-*/
+
+# Reference images for the shipped looks (other people's frames: never committed)
 skills/*/styles/*/images/*
 !skills/*/styles/*/images/README.md
-.DS_Store
