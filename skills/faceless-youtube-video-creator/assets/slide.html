@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Video slide, 1920×1080. render-video.mjs fills the placeholders (fonts, logo) and calls
+  Video slide, 1920×1080 (or 1080×1920 for a Short: html.vertical). render-video.mjs fills the placeholders (fonts, logo) and calls
   window.show(slide, chrome) once per slide, then screenshots the page.
   slide:  one `> SLIDE {…}` cue from script.md (layouts: statement, points, number, table, doc, fields,
           chat, image, point, word, quote, chapter, subscribe, end), plus `_src` (an image as a data URL) and
@@ -21,11 +21,20 @@
       * {
         box-sizing: border-box;
       }
+      /* the frame: 1920×1080, or 1080×1920 for a Short (render-video.mjs --vertical adds html.vertical) */
+      :root {
+        --W: 1920px;
+        --H: 1080px;
+      }
+      :root.vertical {
+        --W: 1080px;
+        --H: 1920px;
+      }
       html,
       body {
         margin: 0;
-        width: 1920px;
-        height: 1080px;
+        width: var(--W);
+        height: var(--H);
         overflow: hidden;
       }
       #stage {
@@ -46,8 +55,8 @@
         --ink: var(--second);
         --hl: color-mix(in srgb, var(--accent) 70%, transparent);
         position: relative;
-        width: 1920px;
-        height: 1080px;
+        width: var(--W);
+        height: var(--H);
         overflow: hidden;
         color: var(--ink);
         background: var(--paper);
@@ -1160,6 +1169,112 @@
         );
         z-index: 5;
       }
+      /* ---------- vertical (a Short, 1080×1920) ----------
+         Text sits in the YouTube Shorts safe zone: below the top bar (y ≥ 160), clear of the like/comment
+         column on the right (x ≤ 960) and above the captions (y ≈ 1260–1420) and the title/channel overlay
+         at the bottom. Pictures (scene, illustration, flow) keep their 1920×1080 drawing inside .frame16,
+         scaled into a band under the text; text layouts get the full column. */
+      .vertical #stage .brand,
+      .vertical #stage .progress {
+        display: none;
+      }
+      .vertical #stage .label {
+        left: 90px;
+        top: 170px;
+        font-size: 24px;
+      }
+      .vertical #stage .box {
+        left: 90px;
+        right: 120px;
+        top: 250px;
+        bottom: 700px;
+        gap: 34px;
+      }
+      .vertical #stage .box.vtop {
+        top: 230px;
+        bottom: auto;
+        height: 340px;
+        max-height: none;
+        translate: none;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        z-index: 2;
+      }
+      .vertical #stage .box.vtop.plate {
+        padding: 24px 36px;
+      }
+      .frame16 {
+        position: absolute;
+        width: 1920px;
+        height: 1080px;
+        transform-origin: 0 0;
+        overflow: hidden;
+        z-index: 0;
+      }
+      .vertical #stage .sub {
+        font-size: 40px;
+      }
+      .vertical #stage .point {
+        font-size: 50px;
+        padding: 24px 30px;
+        gap: 26px;
+      }
+      .vertical #stage .points.many .point {
+        font-size: 44px;
+        padding: 18px 26px;
+      }
+      .vertical #stage .pointbig {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 40px;
+      }
+      .vertical #stage .pointbig .h {
+        width: 100%;
+      }
+      .vertical #stage .bignum {
+        gap: 24px;
+      }
+      .vertical #stage .bignum .from {
+        font-size: 110px;
+      }
+      .vertical #stage .bignum .arrow {
+        font-size: 96px;
+      }
+      .vertical #stage .bignum .to {
+        font-size: 200px;
+      }
+      .vertical #stage table {
+        font-size: var(--tsize, 26px);
+      }
+      .vertical #stage th,
+      .vertical #stage td {
+        padding: 14px 18px;
+      }
+      .vertical #stage .doc pre {
+        font-size: var(--dsize, 26px);
+      }
+      .vertical #stage .field {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 16px 26px;
+      }
+      .vertical #stage .bubble {
+        max-width: 90%;
+        font-size: 38px;
+      }
+      .vertical #stage .doodle-row {
+        flex-direction: column;
+        gap: 30px;
+      }
+      .vertical #stage .doodle-row svg.doodle,
+      .vertical #stage .doodle-row.solo svg.doodle {
+        width: 820px;
+        height: 615px;
+      }
+      .vertical #stage .doodle-row .side {
+        width: 100%;
+      }
     </style>
   </head>
   <body>
@@ -1234,6 +1349,34 @@
 
         // doodles come from assets/doodles.js, inlined by the renderer in the script tag above
         const doodle = (name) => (window.doodle ? window.doodle(name) : '')
+
+        // a Short (html.vertical, 1080×1920): pictures keep their 1920×1080 drawing, scaled into a band
+        const vertical = () => document.documentElement.classList.contains('vertical')
+        const PICTURE = ['scene', 'illustration', 'flow']
+        // after show() has built the slide: everything but the text box and the chrome moves into one
+        // 1920×1080 .frame16. Pictures: scaled to 0.8 (the middle ~70 % shows; `focus` = the x in the
+        // 1920 frame to centre on) or, with `fit: true` (and always for flow), to the full width; a band under
+        // the text, or centred without text. Other layouts' extras (particles) cover the whole frame.
+        const frameVertical = (S, layout, box) => {
+          const chrome = new Set([
+            box,
+            ...stage.querySelectorAll(':scope > .label, :scope > .brand, :scope > .progress')
+          ])
+          const kids = [...stage.children].filter((c) => !chrome.has(c))
+          if (!kids.length) return
+          const pic = PICTURE.includes(layout)
+          const k = pic ? (S.fit || layout === 'flow' ? 1080 / 1920 : 0.8) : 1920 / 1080
+          const w = 1920 * k
+          const h = 1080 * k
+          const left = Math.min(0, Math.max(1080 - w, 540 - (S.focus ?? 960) * k))
+          const top = !pic ? 0 : S.text || S.title ? 600 : Math.round((1920 - h) / 2)
+          const f = el('div', 'frame16')
+          f.style.left = left.toFixed(1) + 'px'
+          f.style.top = top + 'px'
+          f.style.transform = `scale(${k})`
+          stage.insertBefore(f, stage.firstChild)
+          for (const c of kids) f.appendChild(c)
+        }
 
         // ---------- illustrated worlds: particles, marks, camera ----------
         // deterministic noise, seeded from the slide, so a slide renders the same every time
@@ -1902,7 +2045,8 @@
           const heading = (text, size, min, cls = 'h') => {
             if (!text) return null
             const h = el('h1', cls, box, withHl(text, S.highlight))
-            fit(h, size, min)
+            // a Short is watched on a phone: start a quarter bigger (fit() still shrinks it to the column)
+            fit(h, vertical() ? Math.round(size * 1.25) : size, min)
             return h
           }
 
@@ -1936,7 +2080,7 @@
                 window.scene({ ...S, cast: [], props: [] }, { textMode: 'none' }).svg
               )
             if (S.title) {
-              box.classList.add('flow-top')
+              box.classList.add(vertical() ? 'vtop' : 'flow-top')
               if (S.bg) box.classList.add('plate')
               heading(S.title, 64, 44)
             }
@@ -2073,7 +2217,9 @@
             mustFit.push(box)
           } else if (layout === 'scene') {
             const many = (Array.isArray(S.cast) ? S.cast.length : 1) > 1
-            const textMode = S.text ? (many || S.textAt === 'top' ? 'top' : 'left') : 'none'
+            // in a Short the text sits above the picture, so the cast stands as if there were none
+            const textMode =
+              S.text && !vertical() ? (many || S.textAt === 'top' ? 'top' : 'left') : 'none'
             const sc = window.scene ? window.scene(S, { textMode, mascot: C.mascot }) : null
             // with marks, the background and the cast are two pictures, so pins and paths sit between them
             if (sc && Array.isArray(S.marks) && S.marks.length) {
@@ -2085,9 +2231,11 @@
               stage.insertAdjacentHTML('afterbegin', back.svg + front.svg)
             } else if (sc) stage.insertAdjacentHTML('afterbegin', sc.svg)
             if (S.text) {
-              box.classList.add(textMode === 'top' ? 'scene-top' : 'scene-left')
+              box.classList.add(
+                vertical() ? 'vtop' : textMode === 'top' ? 'scene-top' : 'scene-left'
+              )
               if (S.bg && S.bg !== 'plain') box.classList.add('plate')
-              heading(S.text, S.size || (textMode === 'top' ? 84 : 100), 48)
+              heading(S.text, S.size || (textMode === 'left' ? 100 : 84), 48)
               if (S.sub) el('div', 'sub', box, rich(S.sub))
               mustFit.push(box)
             }
@@ -2131,13 +2279,16 @@
             if (S.cast && window.scene) {
               const sc = window.scene(
                 { ...S, bg: 'none' },
-                { textMode: S.text ? (at === 'top' ? 'top' : 'left') : 'none', mascot: C.mascot }
+                {
+                  textMode: S.text && !vertical() ? (at === 'top' ? 'top' : 'left') : 'none',
+                  mascot: C.mascot
+                }
               )
               world.insertAdjacentHTML('beforeend', sc.svg)
               bubbles(sc.cast)
             }
             if (S.text) {
-              box.classList.add('illus-' + at, 'plate')
+              box.classList.add(vertical() ? 'vtop' : 'illus-' + at, 'plate')
               heading(S.text, S.size || 76, 44)
               if (S.sub) el('div', 'sub', box, rich(S.sub))
             }
@@ -2214,6 +2365,7 @@
           if (Array.isArray(S.marks) && S.marks.length) buildMarks(S, layout)
           fxParts = []
           if (S.fx) buildFx(S, box.parentNode === stage ? box : null)
+          if (vertical()) frameVertical(S, layout, box)
           return document.fonts.ready
         }
 

@@ -2,6 +2,8 @@
 
 The default format for the channel: a sequence of 1920×1080 slides that show the script's key line, and an AI voice reading the script. `scripts/render-video.mjs` builds it locally from `script.md`: Kokoro voice (`scripts/tts.py`), Playwright for the slides, ffmpeg for the MP4 (with slow push-ins and crossfades from pace 3). No footage, no presenter, no upload. The look, pace and voice come from `$W/style.json` (SKILL.md §1b).
 
+A **Short** (SKILL.md §9) uses the same cues, rendered at 1080×1920 with `"format": "short"` in its `style.json`: see [shorts-playbook.md](shorts-playbook.md) for its sections, the safe zone, captions and how pictures are framed.
+
 ## How slides attach to the script
 
 `script.md` is the single source. A `> SLIDE {json}` cue starts a slide; every spoken line after it, until the next cue, is that slide's voiceover. Spoken text before the first cue of a section is an error. A chapter card (silent, 2.2 s) is inserted automatically before each `## [IDEA n]`.

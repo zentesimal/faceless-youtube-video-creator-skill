@@ -12,11 +12,14 @@ description: >-
   surprise) built in, renders slides with an AI voiceover (free Kokoro
   voice, or an OpenAI voice that acts the script: asked per video), optional animations and illustrated scenes (a mascot, people, robots,
   backgrounds), subtitles and real chapter times, writes titles and the
-  description, and renders two thumbnails for YouTube's Test & compare. First
+  description, and renders two thumbnails for YouTube's Test & compare; once
+  the video is approved, makes 3 vertical YouTube Shorts from it (re-rendered
+  at 1080×1920 in the same look and voice, with burned-in captions). First
   run asks a few questions (channel, topic area, look) and saves them in
   faceless-youtube.config.json. Use when someone asks for a YouTube video, a
   faceless or long-form video, a video script, video ideas from a CSV or
-  keyword list, or YouTube (A/B) thumbnails, even if they don't say "skill".
+  keyword list, YouTube (A/B) thumbnails, or Shorts from one of their long
+  videos, even if they don't say "skill".
 ---
 
 # Faceless YouTube video creator (8–20 min)
@@ -41,6 +44,7 @@ Turns "make a YouTube video about X" (or "…from this CSV") into a finished, up
 | Face on thumbnails | the mascot (brand look) until the user gives a background-removed PNG (`photo`)                                                                                                                                                                                                    |
 | Setup questions    | **always asked before any research or script** (§1a, §1b), skipping only what the request already answers; `script-stats.mjs` fails a script whose `style.json` lacks the answers                                                                                                  |
 | Delivery           | `> TONE <name>` before a spoken line (intrigue, suspense, surprise, excited, serious, warm, playful; about 10–30 % of lines): a held pause, its own speed and pauses; paid voices also act it; `"expressive"` in `style.json` scales it (0 = off, 1.5 = dramatic)                  |
+| Shorts             | **3 per long video, after approval** (§9): the user picks from 5 moments; 1080×1920, 30–55 s, same look and voice, captions burned in, `[HOOK] [PAYOFF] [LOOP]`                                                                                                                    |
 | Beats              | 3× the normal pause (≈ 0.6 s) after the hook, wow lines (`> BEAT`) and every section's conclusion; `"beat": 0` in `style.json` turns them off                                                                                                                                      |
 
 Terms: `$SKILL` = `${CLAUDE_SKILL_DIR}` (this skill's folder). The **project** is the folder holding `faceless-youtube.config.json` (the user's working folder). `<workspace>` = the config's `paths.workspace` (default `./videos/`). `$W` = `<workspace>/<YYYY-MM-DD>-<slug>/` (one folder per video). The §1a length and language and the §1b answers live in `$W/style.json`; every renderer reads them from there, on top of the config.
@@ -68,6 +72,7 @@ Read before writing:
 - [ ] 6. Packaging: titles, description, real chapters, tags, pinned comment → youtube.md + youtube.json → check
 - [ ] 7. Thumbnails A/B → render → look → fix
 - [ ] 8. Deliver
+- [ ] 9. Shorts (once the long video is approved): 5 candidate moments → the user picks 3 → a mini-script each → script-stats → slides → render → youtube.json → check
 ```
 
 ### 0. First run: setup
@@ -269,7 +274,7 @@ The renderer warns about weak contrast: fix the theme rather than ignore it. The
 
 Statuses: `idea` (not researched or approved yet), `to do` (approved), `draft` (video delivered, not uploaded), `scheduled` (uploaded, not live), `published`, `to ignore`.
 
-"Next topic" = the first `to do` long-format row by volume and proof; "do yt-012" (or "do #12") = that row. Use its title, keywords and proof in the brief. When a video is delivered, set its row to `draft` and fill `slug` and `video_folder`. When the user says it's uploaded or live, set `scheduled` / `published` and ask for whatever is missing from `published_date`, `published_title`, `youtube_url`, `drive_folder_url` and `thumbnail_winner`. New brainstorms add their winners as `idea` rows with the next free `id`. Write the file with a real CSV writer (quoted fields contain commas); don't hand-edit columns.
+"Next topic" = the first `to do` long-format row by volume and proof; "do yt-012" (or "do #12") = that row. Use its title, keywords and proof in the brief. When a video is delivered, set its row to `draft` and fill `slug` and `video_folder`. When the user says it's uploaded or live, set `scheduled` / `published` and ask for whatever is missing from `published_date`, `published_title`, `youtube_url`, `drive_folder_url` and `thumbnail_winner`. New brainstorms add their winners as `idea` rows with the next free `id`. A `short` row that comes from one of the channel's long videos is made with §9 from that video's `$W`. Write the file with a real CSV writer (quoted fields contain commas); don't hand-edit columns.
 
 **Topics from real customer questions (Zentesimal)**: when `integrations.zentesimal` is on and the connector is available, it's a demand source next to the CSV: `list_voc_anomalies` for rising themes, `search_indexed_results` for the questions customers actually ask (count them as demand), `ask_internal_qa` for the right answer to show as proof. Turn each theme into "how do I…" questions and cluster them as below. Never put a customer's name, email or message on screen or in the script: paraphrase and aggregate ("37 people asked this last month").
 
@@ -462,6 +467,19 @@ Reply with, in this order:
 
 Never upload to YouTube or anywhere else from this skill.
 
+### 9. Shorts (once the long video is approved)
+
+Every long video can give **3 Shorts**: vertical (1080×1920), 30–55 s, each a standalone retelling of one moment, rendered by the same pipeline in the same look and voice, with burned-in captions. Offer them in §8's reply; start when the user says the long video is approved (or asks for Shorts from an existing `$W`). Rules and patterns: [`references/shorts-playbook.md`](references/shorts-playbook.md).
+
+1. **Pick moments.** Read `$W/script.md` (and `out/timeline.json` for where things land). Propose **5 candidates** with `AskUserQuestion` (multiSelect, pick 3), one line each: the moment (an idea's wow line, the hook's paradox, a surprising number, a myth it busts), why it stands alone without the rest of the video, and a draft first line. Recommend the 3 strongest first.
+2. **Write each mini-script** in `$W/shorts/<n>-<slug>/script.md` (n = 1–3): `## [HOOK]` (one line that lands in ≈ 2–3 s, on a slide that already shows the tension), `## [PAYOFF]` (the idea retold for someone who hasn't seen the video: 3–6 slides, one proof), `## [LOOP]` (a last line that leads back into the first, or "the full video is linked above"). Same `> SLIDE` / `> TONE` / `> BEAT` cues; no `> CHANNEL` / `> SUBSCRIBE`, no chapter, subscribe or end slides. Reuse the long video's wording only where it still works out of context.
+3. **`style.json`**: copy `$W/style.json` and add `"format": "short"` (pace becomes ≥ 4 unless `pace` says otherwise; `"captions": false` turns the burned-in captions off). Pictures: reuse the long video's generated images by pointing `src` at them (`../../assets/gen/…`); a new `prompt` costs a generation.
+4. **Check**: `node $SKILL/scripts/script-stats.mjs $W/shorts/<n>-<slug>/script.md` until it passes (it switches to the Short checks by itself).
+5. **Slides**: `node $SKILL/scripts/render-video.mjs $W/shorts/<n>-<slug> --slides`, then `Read` `video/sheet.png`. Check: text inside the safe zone (below the top bar, left of the right-hand buttons, above the captions band), pictures framed so the cast is in view (`focus`: the x in the 1920 frame to centre on; `fit: true` shows the whole picture smaller), the first slide works as the frame people see when they scroll.
+6. **Render**: `node $SKILL/scripts/render-video.mjs $W/shorts/<n>-<slug>` → `out/short.mp4` (1080×1920, captions burned in), `out/short.srt`, `out/short-timeline.json`. Grab 3 frames (`ffmpeg -ss <t> -i out/short.mp4 -frames:v 1 …`) and look at them: the captions are readable and don't cover the slide text.
+7. **Packaging**: `youtube.md` + `youtube.json` in the Short's folder: title ≤ 70 characters (the hook as a statement or question, not the long video's title), 1–2 lines of description with the long video's URL in it, `#Shorts`, `longVideo` (the URL), tags, language, `containsSyntheticMedia`. No chapters, no thumbnails (YouTube shows a frame; the app lets you pick one). `node $SKILL/scripts/youtube-meta.mjs $W/shorts/<n>-<slug>` until it passes.
+8. **Deliver** the paths of each `out/short.mp4` (send them in a temporary environment), plus how to publish: upload from YouTube Studio or the app, paste title and description, **Related video** = the long video (Studio › the Short › Related video: no API sets it), publish a few days apart (after the long video), and add each Short's URL to the topic sheet row's `related_links`.
+
 ## Keys and `.env`
 
 Every script reads its variables through `scripts/env.mjs`, always in this order: **the real environment** (shell, CI, the agent's settings) wins, then **`<project>/.env`** (the folder holding `faceless-youtube.config.json`, else the working folder). Nothing else is read, so where a value comes from is never a guess; `providers.mjs` prints it (never the value).
@@ -484,7 +502,7 @@ Every script reads its variables through `scripts/env.mjs`, always in this order
 
 ## Reference files
 
-- `references/channel.example.md` · `references/script-playbook.md` · `references/video-playbook.md` · `references/thumbnail-playbook.md` · `references/video-ideas.example.csv`
+- `references/channel.example.md` · `references/script-playbook.md` · `references/video-playbook.md` · `references/thumbnail-playbook.md` · `references/shorts-playbook.md` · `references/video-ideas.example.csv`
 - `scripts/style.mjs`: the project config (`faceless-youtube.config.json`, defaults), `style.json`, fonts, theme checks, channel identity, browser (shared by every script).
 - `scripts/csv-profile.mjs`: CSV profile for the brainstorm (no dependencies).
 - `scripts/script-stats.mjs`: structure + length checker, emotion checks (tones) and the setup gate; writes `teleprompter.txt` and `chapters.txt` (estimates).
@@ -492,13 +510,13 @@ Every script reads its variables through `scripts/env.mjs`, always in this order
 - `scripts/presets.mjs`: lists the looks in `styles/` for the look question.
 - `scripts/providers.mjs`: which keys are set and where from; `--check` tests that they work with the models (`--live`: one tiny paid request), for the free-or-OpenAI question.
 - `scripts/env.mjs` + `references/env.example`: how every script reads variables (environment, then the project's `.env`) and the variables it knows.
-- `scripts/render-video.mjs` + `assets/slide.html` + `scripts/tts.py`: slides, Kokoro voice, MP4 (motion + crossfades at pace ≥ 3, animated slides filmed frame by frame), subtitles, real chapters; `--preview` for single slides.
+- `scripts/render-video.mjs` + `assets/slide.html` + `scripts/tts.py`: slides, Kokoro voice, MP4 (motion + crossfades at pace ≥ 3, animated slides filmed frame by frame), subtitles, real chapters, `out/timeline.json`; `--preview` for single slides; a Short (`"format": "short"` or `--vertical`) at 1080×1920 with burned-in captions.
 - `assets/scenes.js`: the `scene` layout's backgrounds (including the layered worlds `aurora`, `sea`, `dawn`), characters (ghost, person, robot), poses and props, drawn in the theme's colours.
 - `assets/slide.html`: every layout, plus the illustrated-world engine (camera with parallax, `fx` particles, `marks`) and the animations.
 - `scripts/gen-images.mjs`: generated illustrations and scene backgrounds (OpenAI Image API; model = config `models.image`), in the look's image style.
 - `scripts/tts-setup.mjs` + `scripts/voice-samples.mjs`: Kokoro setup (cached in `<workspace>/.tts/`), and the samples for the voice question.
 - `scripts/moodboard.mjs`: palette and font files from an inspiration folder (story look).
 - `scripts/render-thumbnails.mjs` + `assets/thumbnail.html`: A/B thumbnails and the compare sheet, in the video's look.
-- `scripts/youtube-meta.mjs`: checks `youtube.json` against YouTube's limits (local, no network).
+- `scripts/youtube-meta.mjs`: checks `youtube.json` against YouTube's limits (local, no network); a Short's rules in a Short's folder.
 - `styles/`: one folder per look (`style.json` + `style.md`); `styles/README.md` explains how to add one.
 - `assets/fonts/` (Fraunces, Inter, JetBrains Mono, with their licences) · `assets/youtube/` (YouTube icon and Roboto for the Subscribe slide).

@@ -3,7 +3,7 @@
 //
 //   node render-video.mjs <$W> [--slides] [--preview s012,s020] [--voice af_heart] [--speed 0.92] [--pace 1-5]
 //                             [--anim auto|off] [--gap 0.1] [--section-gap 0.3] [--max-pause 0.2] [--beat 0.6]
-//                             [--expressive 1] [--out <file.mp4>]
+//                             [--expressive 1] [--vertical] [--out <file.mp4>]
 //
 //   --slides   only render the slide PNGs + $W/video/sheet.png (no voice, no MP4): fast layout check
 //   --preview  like --slides, plus a short MP4 of each named slide as it will move ($W/video/preview-<id>.mp4)
@@ -12,7 +12,11 @@
 //   --camera   with animations: a camera move with parallax on scene and illustration slides (auto, drift, push,
 //              pull, pan-left, pan-right, rise, sink, off). Default: style.json "camera", else off; a cue's own wins
 //   default    voice for every slide (cached; only changed lines are re-spoken), then
-//              $W/out/video.mp4 (1920×1080, 30 fps, H.264 + AAC), $W/out/video.srt, $W/out/chapters.txt (real times)
+//              $W/out/video.mp4 (1920×1080, 30 fps, H.264 + AAC), $W/out/video.srt, $W/out/chapters.txt (real times),
+//              $W/out/timeline.json (every slide's id, section, start, length and voice takes)
+//   --vertical a Short (also style.json "format": "short"): 1080×1920, sections [HOOK] [PAYOFF] [LOOP], no chapter
+//              cards, label, logo or progress bar, captions burned in (style.json "captions": false = off), pace ≥ 4
+//              unless --pace says otherwise. Writes $W/out/short.mp4 + short.srt (../references/shorts-playbook.md)
 //
 // Look, pace and voice come from $W/style.json (see style.mjs); flags override it. Pace 1–2 = hard cuts on still
 // slides; 3–5 = slow push-ins and crossfades, shorter slides (profile below; spec: ../references/video-playbook.md).
@@ -68,6 +72,10 @@ const preview = new Set(
     .filter(Boolean)
 )
 const onlySlides = args.includes('--slides') || preview.size > 0
+// a Short: 1080×1920 (slide.html › vertical), its own sections and checks
+const VERT = args.includes('--vertical') || style.format === 'short'
+const [VW, VH] = VERT ? [1080, 1920] : [1920, 1080]
+const CAPTIONS = VERT && style.captions !== false
 const VOICE = flag('--voice', style.voice || 'af_heart')
 // Kokoro reads at 0.92, cloud voices at 1.1 by default (voices.mjs), so both land near the same pace
 const SPEED = Number(flag('--speed', String(style.speed ?? defaultSpeed(VOICE))))
@@ -95,8 +103,17 @@ if (style.language && !LANG.startsWith(style.language)) {
   )
   process.exit(2)
 }
-const PACE = Math.min(5, Math.max(1, Math.round(Number(flag('--pace', String(style.pace ?? 2))))))
-const outFile = resolve(flag('--out', join(W, 'out', 'video.mp4')))
+// a Short cuts quicker: pace 4 at least, unless --pace asks for less
+const PACE = Math.min(
+  5,
+  Math.max(
+    1,
+    Math.round(
+      Number(flag('--pace', String(VERT ? Math.max(4, style.pace ?? 4) : (style.pace ?? 2))))
+    )
+  )
+)
+const outFile = resolve(flag('--out', join(W, 'out', VERT ? 'short.mp4' : 'video.mp4')))
 const END_HOLD = 20 // seconds the end slide stays up, so YouTube's end-screen elements have room
 
 // max = longest a slide should stay up; fade = crossfade into the next slide (0 = cut);
@@ -190,6 +207,20 @@ readFileSync(join(W, 'script.md'), 'utf8')
   })
 if (tone) problems.push(`line ${tone.ln}: TONE must come right before a spoken line`)
 if (!cues.length) problems.push('no `> SLIDE {…}` cues in script.md')
+if (VERT) {
+  // a Short: [HOOK] [PAYOFF] [LOOP]; no chapters, subscribe click or end screen (Shorts have none of them)
+  for (const sc of sections)
+    if (!['HOOK', 'PAYOFF', 'LOOP'].includes(sc.tag))
+      problems.push(`[${sc.tag}]: a Short has only [HOOK], [PAYOFF] and [LOOP] sections`)
+  for (const c of cues) {
+    if (['chapter', 'subscribe', 'end'].includes(c.layout))
+      problems.push(`line ${c.line}: no "${c.layout}" slide in a Short`)
+    else if (['table', 'doc', 'fields', 'flow'].includes(c.layout))
+      console.warn(
+        `warning: line ${c.line}: a "${c.layout}" slide is hard to read on a phone; prefer number, point, chat or a scene`
+      )
+  }
+}
 
 // `points` (or a `flow`'s nodes) with reveal: one slide per point, spoken line i with point i
 const slides = []
@@ -275,22 +306,24 @@ const T = {
   }
 }[style.language === 'es' ? 'es' : 'en']
 const label = (s) =>
-  ({
-    HOOK: '',
-    INTRO: T.intro,
-    'MID HOOK': T.half,
-    SUMMARY: T.summary,
-    OUTRO: ''
-  })[s.tag] ??
-  (s.tag === 'IDEA'
-    ? style.story
-      ? s.title
-      : `${T.idea} ${s.n} ${T.of} ${ideas.length} · ${s.title}`
-    : s.tag)
+  VERT
+    ? ''
+    : ({
+        HOOK: '',
+        INTRO: T.intro,
+        'MID HOOK': T.half,
+        SUMMARY: T.summary,
+        OUTRO: ''
+      }[s.tag] ??
+      (s.tag === 'IDEA'
+        ? style.story
+          ? s.title
+          : `${T.idea} ${s.n} ${T.of} ${ideas.length} · ${s.title}`
+        : s.tag))
 const all = []
 let lastSec = null
 for (const s of slides) {
-  if (s.sec !== lastSec && s.sec.tag === 'IDEA')
+  if (!VERT && s.sec !== lastSec && s.sec.tag === 'IDEA')
     all.push({
       layout: 'chapter',
       eyebrow: style.story
@@ -317,7 +350,8 @@ all.forEach((s) => {
 // beats: every section but the outro ends on one (its conclusion, the hook's promise, the mid hook's tease)
 for (const sc of sections) {
   const last = all.findLast((s) => s.sec === sc && s.say.length)
-  if (last && sc.tag !== 'OUTRO') last.beats = [...(last.beats || []), last.say.length - 1]
+  if (last && sc.tag !== 'OUTRO' && sc.tag !== 'LOOP')
+    last.beats = [...(last.beats || []), last.say.length - 1]
 }
 // a slide's voice is spoken in takes: a beat or a change of tone inside it splits it, and each take is spoken
 // on its own (in its tone). `gap` = the silence before a take: the beat, or the tone's held breath before it
@@ -576,8 +610,8 @@ const plan = (i, filmed = false) => {
       : '1'
   const vf =
     z === '1'
-      ? `scale=1920:1080,fps=${FPS},format=yuv420p,settb=AVTB`
-      : `scale=3840:2160,zoompan=z='${z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1920x1080:fps=${FPS},format=yuv420p,settb=AVTB`
+      ? `scale=${VW}:${VH},fps=${FPS},format=yuv420p,settb=AVTB`
+      : `scale=${VW * 2}:${VH * 2},zoompan=z='${z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${VW}x${VH}:fps=${FPS},format=yuv420p,settb=AVTB`
   return { T, n, vf }
 }
 const ENC = ['-c:v', 'libx264', '-crf', '16', '-preset', 'veryfast', '-pix_fmt', 'yuv420p']
@@ -629,7 +663,7 @@ async function animClip(fr, i, spec) {
         fr.dur.toFixed(2),
         n,
         vf,
-        'anim1'
+        VERT ? 'anim1v' : 'anim1'
       ].join('|')
     )
     .digest('hex')
@@ -702,12 +736,13 @@ async function animClip(fr, i, spec) {
 
 // ---------- slides ----------
 const page = await browser.newPage({
-  viewport: { width: 1920, height: 1080 },
+  viewport: { width: VW, height: VH },
   deviceScaleFactor: 1
 })
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
 await page.goto(pathToFileURL(pagePath).href)
+if (VERT) await page.evaluate(() => document.documentElement.classList.add('vertical'))
 await page.evaluate(() => document.fonts.ready)
 let failed = false
 for (const fr of frames) {
@@ -823,9 +858,11 @@ for (const s of tooLong) {
     )
     .join('')
   const sheetHtml = join(vdir, '.sheet.html')
+  // landscape: 6 across at 320×180; a Short: 8 across at 216×384
+  const [cw, chh, across] = VERT ? [216, 384, 8] : [320, 180, 6]
   writeFileSync(
     sheetHtml,
-    `<!doctype html><meta charset="utf-8"><style>body{margin:0;padding:20px;background:#ddd;font:14px monospace;display:grid;grid-template-columns:repeat(6,320px);gap:14px;width:max-content}figure{margin:0}img{width:320px;height:180px;display:block;border-radius:6px}figcaption{margin-top:4px;color:#333}</style>${cells}`
+    `<!doctype html><meta charset="utf-8"><style>body{margin:0;padding:20px;background:#ddd;font:14px monospace;display:grid;grid-template-columns:repeat(${across},${cw}px);gap:14px;width:max-content}figure{margin:0}img{width:${cw}px;height:${chh}px;display:block;border-radius:6px}figcaption{margin-top:4px;color:#333;font-size:${VERT ? 12 : 14}px;overflow-wrap:anywhere}</style>${cells}`
   )
   const p2 = await browser.newPage({ viewport: { width: 2100, height: 600 } })
   await p2.goto(pathToFileURL(sheetHtml).href)
@@ -834,6 +871,11 @@ for (const s of tooLong) {
   rmSync(sheetHtml, { force: true })
   console.log(`wrote ${join(vdir, 'sheet.png')}`)
 }
+// captions for a Short: one transparent PNG per 2–4-word chunk (this ffmpeg may lack libass/drawtext, so the
+// page draws them in the video's fonts), laid over the video as one track when muxing
+const capDir = join(vdir, 'captions')
+let capList = null
+if (CAPTIONS && !onlySlides && !failed) capList = await renderCaptions(captionCues())
 await browser.close()
 if (failed) stop('fix the slide problems above and re-run.', 2)
 
@@ -847,7 +889,12 @@ console.log(
   // the length before the end slide, when there is one (its hold is for YouTube's end screen)
   const last = all[all.length - 1]
   const body = last && last.layout === 'end' ? total - last.dur : total
-  if (!preview.size && (body < lo * 60 || body > hi * 60))
+  // a Short: 30–55 s is the target; YouTube takes up to 3 min, but past 60 s it stops looping and loses reach
+  if (VERT && !preview.size && (body < 20 || body > 58))
+    console.warn(
+      `warning: the Short runs ${fmt(body)}; aim for 30–55 s (shorts-playbook.md › Length)`
+    )
+  if (!VERT && !preview.size && (body < lo * 60 || body > hi * 60))
     console.warn(
       `warning: ${fmt(body)} before the end slide is outside ${lo}–${hi} min${Number.isFinite(T) ? ` (target ${T} min)` : ''}`
     )
@@ -1051,19 +1098,35 @@ if (!moving) {
   )
 }
 
-console.log('muxing voice…')
+console.log(capList ? 'muxing voice and captions…' : 'muxing voice…')
 ff(
   [
     '-i',
     silent,
     '-i',
     join(tmp, 'voice.wav'),
-    '-map',
-    '0:v',
+    ...(capList
+      ? [
+          '-f',
+          'concat',
+          '-safe',
+          '0',
+          '-i',
+          capList,
+          '-filter_complex',
+          `[2:v]fps=${FPS},format=rgba[c];[0:v][c]overlay=0:0:eof_action=pass,format=yuv420p[v]`,
+          '-map',
+          '[v]',
+          '-c:v',
+          'libx264',
+          '-crf',
+          '18',
+          '-preset',
+          'medium'
+        ]
+      : ['-map', '0:v', '-c:v', 'copy']),
     '-map',
     '1:a',
-    '-c:v',
-    'copy',
     '-af',
     'loudnorm=I=-16:TP=-1.5:LRA=11',
     '-c:a',
@@ -1089,38 +1152,137 @@ const ts = (sec) => {
   const s = Math.floor((ms % 60000) / 1000)
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms % 1000).padStart(3, '0')}`
 }
-const srt = []
-for (const s of all.filter((x) => x.say.length)) {
-  let c = s.astart
-  for (const k of s.takes) {
-    c += k.gap
-    const sentences = k.text.match(/[^.!?]+[.!?]+["')]?|[^.!?]+$/g) || []
-    const chars = sentences.reduce((a, x) => a + x.trim().length, 0) || 1
-    const len = takeLen(k)
-    for (const x of sentences) {
-      const d = (x.trim().length / chars) * len
-      srt.push(`${srt.length + 1}\n${ts(c)} --> ${ts(c + d)}\n${x.trim()}\n`)
-      c += d
+// each spoken take split into pieces (sentences for the .srt, 2–4-word chunks for a Short's captions), its
+// length shared out by characters: [{ at, end, text }]
+function timedPieces(split) {
+  const out = []
+  for (const s of all.filter((x) => x.say.length)) {
+    let c = s.astart
+    for (const k of s.takes) {
+      c += k.gap
+      const pieces = split(k.text)
+      const chars = pieces.reduce((a, x) => a + x.length, 0) || 1
+      const len = takeLen(k)
+      for (const x of pieces) {
+        const d = (x.length / chars) * len
+        out.push({ at: c, end: c + d, text: x })
+        c += d
+      }
     }
   }
+  return out
 }
-writeFileSync(join(dirname(outFile), 'video.srt'), srt.join('\n'))
-const chapters = [{ at: 0, title: T.intro }]
-for (const s of all) {
-  if (s.auto) chapters.push({ at: s.start, title: s.sec.title })
-  if (s.sec.tag === 'SUMMARY' && !chapters.some((c) => c.title === T.summary))
-    chapters.push({ at: s.start, title: T.summary })
+const sentencesOf = (text) =>
+  (text.match(/[^.!?]+[.!?]+["')]?|[^.!?]+$/g) || []).map((x) => x.trim()).filter(Boolean)
+// caption chunks: up to 3 words or ~16 characters, and a chunk always ends at punctuation
+function captionCues() {
+  return timedPieces((text) => {
+    const chunks = []
+    let cur = []
+    for (const w of text.replace(/\*\*/g, '').split(/\s+/).filter(Boolean)) {
+      cur.push(w)
+      if (cur.length >= 3 || cur.join(' ').length >= 16 || /[,.!?;:…]["')]?$/.test(w)) {
+        chunks.push(cur.join(' '))
+        cur = []
+      }
+    }
+    if (cur.length) chunks.push(cur.join(' '))
+    return chunks
+  })
 }
-writeFileSync(
-  join(dirname(outFile), 'chapters.txt'),
-  chapters.map((c) => `${fmt(c.at)} ${c.title}`).join('\n') + '\n'
+// draws each caption chunk on a transparent 1080×1920 page (the video's display font, white with a thick
+// outline in the theme's ink, centred at y ≈ 1340: under the slide text, above YouTube's title overlay) and
+// writes an ffmpeg concat list that shows each one for its time and nothing in between
+async function renderCaptions(cues) {
+  rmSync(capDir, { recursive: true, force: true })
+  mkdirSync(capDir, { recursive: true })
+  const ink = style.theme?.second || '#111'
+  const p = await browser.newPage({ viewport: { width: VW, height: VH }, deviceScaleFactor: 1 })
+  await p.setContent(
+    `<!doctype html><meta charset="utf-8"><style>${fontsCss(style)}
+    html,body{margin:0;width:${VW}px;height:${VH}px;background:transparent}
+    #c{position:absolute;left:90px;right:120px;top:1270px;height:170px;display:flex;align-items:center;justify-content:center;text-align:center;
+      font-family:${fam.display || 'sans-serif'};font-weight:800;font-size:76px;line-height:1.05;color:#fff;
+      -webkit-text-stroke:16px ${ink};paint-order:stroke fill;letter-spacing:.01em}</style><div id="c"></div>`
+  )
+  await p.evaluate(() => document.fonts.ready)
+  const blank = join(capDir, 'blank.png')
+  await p.screenshot({ path: blank, omitBackground: true })
+  const list = []
+  let t = 0
+  for (const [i, c] of cues.entries()) {
+    if (c.at - t > 0.001) list.push(`file '${blank}'`, `duration ${(c.at - t).toFixed(3)}`)
+    const png = join(capDir, `c${String(i + 1).padStart(4, '0')}.png`)
+    await p.evaluate((txt) => {
+      const e = document.getElementById('c')
+      e.textContent = txt
+      // one or two lines: shrink a long chunk until it fits
+      let fs = 76
+      e.style.fontSize = fs + 'px'
+      while (fs > 48 && (e.scrollHeight > e.clientHeight || e.scrollWidth > e.clientWidth)) {
+        fs -= 4
+        e.style.fontSize = fs + 'px'
+      }
+    }, c.text)
+    await p.screenshot({ path: png, omitBackground: true })
+    list.push(`file '${png}'`, `duration ${(c.end - c.at).toFixed(3)}`)
+    t = c.end
+  }
+  list.push(`file '${blank}'`, `duration ${Math.max(0.1, total - t).toFixed(3)}`, `file '${blank}'`)
+  await p.close()
+  const file = join(capDir, 'captions.txt')
+  writeFileSync(file, list.join('\n'))
+  console.log(`rendered ${cues.length} captions to ${capDir}`)
+  return file
+}
+
+const out = dirname(outFile)
+const srt = timedPieces(sentencesOf).map(
+  (c, i) => `${i + 1}\n${ts(c.at)} --> ${ts(c.end)}\n${c.text}\n`
 )
+const srtFile = join(out, VERT ? 'short.srt' : 'video.srt')
+writeFileSync(srtFile, srt.join('\n'))
+// the timeline as rendered: lets a later step cut a clip (a hook preview) or find a moment by time
+writeFileSync(
+  join(out, VERT ? 'short-timeline.json' : 'timeline.json'),
+  JSON.stringify(
+    {
+      total: Math.round(total * 1000) / 1000,
+      slides: all.map((s) => ({
+        id: s.id,
+        section: s.sec.tag + (s.sec.n ? ' ' + s.sec.n : ''),
+        layout: s.layout,
+        line: s.line,
+        start: Math.round(s.start * 1000) / 1000,
+        dur: Math.round(s.dur * 1000) / 1000,
+        voiceStart: Math.round(s.astart * 1000) / 1000,
+        takes: s.takes.map((k) => ({ id: k.id, tone: k.tone, text: k.text }))
+      }))
+    },
+    null,
+    2
+  ) + '\n'
+)
+if (!VERT) {
+  const chapters = [{ at: 0, title: T.intro }]
+  for (const s of all) {
+    if (s.auto) chapters.push({ at: s.start, title: s.sec.title })
+    if (s.sec.tag === 'SUMMARY' && !chapters.some((c) => c.title === T.summary))
+      chapters.push({ at: s.start, title: T.summary })
+  }
+  writeFileSync(
+    join(out, 'chapters.txt'),
+    chapters.map((c) => `${fmt(c.at)} ${c.title}`).join('\n') + '\n'
+  )
+}
 const endSlide = all[all.length - 1]
 const mb = (statSync(outFile).size / 1048576).toFixed(1)
 console.log(
-  `wrote ${outFile}  (1920×1080, ${fmt(total)}, ${mb} MB, MP4 · H.264 + AAC, pace ${PACE}, voice ${VOICE})`
+  `wrote ${outFile}  (${VW}×${VH}, ${fmt(total)}, ${mb} MB, MP4 · H.264 + AAC, pace ${PACE}, voice ${VOICE}${capList ? ', captions' : ''})`
 )
-console.log(`wrote ${join(dirname(outFile), 'video.srt')} and chapters.txt (real times)`)
+console.log(
+  `wrote ${srtFile}${VERT ? '' : ', chapters.txt (real times)'} and the timeline (${VERT ? 'short-' : ''}timeline.json)`
+)
 if (endSlide.layout === 'end')
   console.log(
     `end slide from ${fmt(endSlide.start)} to ${fmt(total)}: add the end screen there in Studio`

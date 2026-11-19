@@ -28,6 +28,9 @@
 //            must land within a minute of it. Without a target the old 12–18 window applies.
 //            --min / --max override the window.
 //
+//   short    with style.json "format": "short" (or --short): a Short's checks instead ([HOOK] [PAYOFF] [LOOP],
+//            30–55 s, a quick first line, no chapters or reminders; ../references/shorts-playbook.md)
+//
 //   prints   a table: section, spoken words, demo seconds, start time, length
 //   writes   teleprompter.txt (spoken text only) and chapters.txt (YouTube chapters), next to script.md
 //   exit 2   when a hard rule fails (missing/out-of-order section, missing reminder, length outside min–max)
@@ -53,6 +56,94 @@ try {
   const sj = join(dirname(file), 'style.json')
   if (existsSync(sj)) styleJson = JSON.parse(readFileSync(sj, 'utf8'))
 } catch {}
+// ---------- a Short ($W/style.json "format": "short", or --short): its own, smaller checks ----------
+// [HOOK] [PAYOFF] [LOOP] in that order, a SLIDE before each section's first line, no chapter/subscribe/end slides
+// or channel reminders, 30–55 s spoken (20–58 warns, over 180 s fails: YouTube's cap), a hook whose first line
+// lands in ≈ 4 s, and a last line that leads back into the first or to the long video. Writes teleprompter.txt.
+if (args.includes('--short') || styleJson.format === 'short') {
+  const wpm = flag('--wpm', voiceWpm(styleJson.voice, styleJson.speed))
+  const problems = []
+  const warnings = []
+  const secs = []
+  let cur = null
+  let slideSeen = false
+  readFileSync(file, 'utf8')
+    .split('\n')
+    .forEach((raw, ln) => {
+      const line = raw.trim()
+      const h = line.match(/^##\s*\[([A-Z ]+?)(?:\s+\d+)?\]/)
+      if (h) {
+        cur = { tag: h[1].trim(), lines: [] }
+        secs.push(cur)
+        slideSeen = false
+        return
+      }
+      if (!cur || !line || line.startsWith('#') || line.startsWith('<!--')) return
+      if (line.startsWith('>')) {
+        const m = line.match(/^>\s*SLIDE\s+(\{.*\})\s*$/)
+        if (m) {
+          try {
+            const c = JSON.parse(m[1])
+            if (['chapter', 'subscribe', 'end'].includes(c.layout))
+              problems.push(`line ${ln + 1}: no "${c.layout}" slide in a Short`)
+            if (['table', 'doc', 'fields', 'flow'].includes(c.layout))
+              warnings.push(`line ${ln + 1}: a "${c.layout}" slide is hard to read on a phone`)
+          } catch (e) {
+            problems.push(`line ${ln + 1}: SLIDE cue is not valid JSON (${e.message})`)
+          }
+          slideSeen = true
+        } else if (/^>\s*(CHANNEL|SUBSCRIBE)\b/i.test(line))
+          problems.push(`line ${ln + 1}: no channel reminder or subscribe ask in a Short`)
+        else if (/^>\s*SLIDE\b/i.test(line))
+          problems.push(`line ${ln + 1}: SLIDE cue must be {…} JSON on one line`)
+        return
+      }
+      if (!slideSeen)
+        problems.push(`line ${ln + 1}: spoken text in [${cur.tag}] before any SLIDE cue`)
+      cur.lines.push(line)
+    })
+  const order = secs.map((x) => x.tag).join(' ')
+  if (order !== 'HOOK PAYOFF LOOP')
+    problems.push(`sections are [${order}]; a Short has [HOOK] [PAYOFF] [LOOP], in that order`)
+  const count = (t) => t.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length
+  const rows = secs.map((x) => {
+    const words = x.lines.reduce((a, l) => a + count(l), 0)
+    return { tag: x.tag, words, secs: (words / wpm) * 60 }
+  })
+  const total = rows.reduce((a, r) => a + r.secs, 0)
+  const hook = secs.find((x) => x.tag === 'HOOK')
+  const first = hook?.lines[0] ? count(hook.lines[0]) : 0
+  if (!first) problems.push('the [HOOK] has no spoken line')
+  else if (first > 14)
+    warnings.push(
+      `the hook's first line is ${first} words (≈ ${((first / wpm) * 60).toFixed(1)} s): the scroll decides in 2–3 s, cut it to ≤ 12`
+    )
+  if (total > 180) problems.push(`≈ ${Math.round(total)} s spoken: YouTube Shorts end at 3 min`)
+  else if (total < 20 || total > 58)
+    warnings.push(
+      `≈ ${Math.round(total)} s spoken: aim for 30–55 s (past 60 s a Short stops looping)`
+    )
+  console.log('section   words   seconds')
+  for (const r of rows)
+    console.log(
+      `${r.tag.padEnd(9)} ${String(r.words).padStart(5)}   ${r.secs.toFixed(1).padStart(7)}`
+    )
+  console.log(
+    `total     ${String(rows.reduce((a, r) => a + r.words, 0)).padStart(5)}   ${total.toFixed(1).padStart(7)}  (at ${wpm} wpm)`
+  )
+  writeFileSync(
+    join(dirname(file), 'teleprompter.txt'),
+    secs.map((x) => `[${x.tag}]\n` + x.lines.join('\n')).join('\n\n') + '\n'
+  )
+  warnings.forEach((w) => console.warn('warning: ' + w))
+  if (problems.length) {
+    problems.forEach((p) => console.error('PROBLEM: ' + p))
+    process.exit(2)
+  }
+  console.log('\nThe Short passes the structure checks (shorts-playbook.md).')
+  process.exit(0)
+}
+
 // words per minute: --wpm, else the rate of the voice in style.json at its speed (voices.mjs: Kokoro ≈ 185 at
 // 0.92, OpenAI ≈ 170 at 1.1), else a presenter's 150
 const PRESENTER = styleJson.format === 'presenter' || !styleJson.voice

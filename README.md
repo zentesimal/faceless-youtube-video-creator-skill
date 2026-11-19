@@ -35,6 +35,7 @@ For each video, in `videos/<date>-<slug>/`:
 - `out/video.srt` and `out/chapters.txt`: subtitles and **real** chapter times for the description.
 - `youtube.md`: three title options, the description, tags, a pinned comment and the end-screen plan.
 - `thumbs/thumb-A.png`, `thumbs/thumb-B.png`: two thumbnails that test one hypothesis, for YouTube's Test & compare.
+- `shorts/<n>-<slug>/out/short.mp4` (when you ask, once the video is approved): three vertical Shorts, 30–55 s, in the same look and voice, with burned-in captions.
 - `script.md`, `brief.md`: the script (with every slide cue) and the research behind it, with sources.
 
 ## What it does
@@ -53,6 +54,7 @@ For each video, in `videos/<date>-<slug>/`:
 - **Optional generated illustrations** with the OpenAI Image API, in your look's style.
 - **A channel kit**: one `channel/` folder with your channel brief, logo, avatar and the description, keywords and upload defaults to paste into YouTube Studio.
 - **Upload-ready metadata**: `youtube.json` with the title, description (chapters included), tags, category and disclosure answers to paste into YouTube Studio, checked against YouTube's limits.
+- **Shorts from every video**: it proposes five moments that stand on their own, you pick three, and each is rewritten as a 30–55 s Short (hook, payoff, a line that loops) and rendered vertically with big captions, ready to link to the long video.
 - **Never uploads anything.** You review and publish.
 
 ## Configuration
