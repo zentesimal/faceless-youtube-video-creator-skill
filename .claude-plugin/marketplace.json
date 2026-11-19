@@ -9,7 +9,7 @@
     {
       "name": "faceless-youtube-video-creator",
       "source": "./",
-      "description": "Make finished faceless YouTube videos locally: topic, script, AI voiceover, animated slides and scenes, subtitles, chapters and A/B thumbnails."
+      "description": "Make finished faceless YouTube videos locally: topic, script, AI voiceover, animated slides and scenes, subtitles, chapters, A/B thumbnails and vertical Shorts."
     }
   ]
 }

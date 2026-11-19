@@ -1,7 +1,7 @@
 {
   "name": "faceless-youtube-video-creator",
-  "version": "0.1.0",
-  "description": "Make finished faceless YouTube videos locally: topic, script, AI voiceover, animated slides and scenes, subtitles, chapters and A/B thumbnails.",
+  "version": "0.2.0",
+  "description": "Make finished faceless YouTube videos locally: topic, script, AI voiceover, animated slides and scenes, subtitles, chapters, A/B thumbnails and vertical Shorts.",
   "author": { "name": "Zentesimal", "url": "https://zentesimal.com" },
   "homepage": "https://github.com/zentesimal/faceless-youtube-video-creator-skill",
   "repository": "https://github.com/zentesimal/faceless-youtube-video-creator-skill",

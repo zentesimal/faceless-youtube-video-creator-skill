@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.2.0 (2026-11-19)
+
+Shorts from your long videos.
+
+- **Shorts from a long video**: once a video is approved, the skill proposes 5 standalone moments, you pick 3, and each becomes a 30–55 s vertical Short (1080×1920) with its own `[HOOK] [PAYOFF] [LOOP]` script, rendered by the same pipeline in the same look and voice (`"format": "short"` in its `style.json`, or `render-video.mjs --vertical`). Text stays in the Shorts safe zone, pictures keep their 16:9 drawing in a band under the text (`focus`, `fit`), captions are burned in 2–4 words at a time (`"captions": false` turns them off), and `script-stats.mjs` and `youtube-meta.mjs` check a Short's own rules (length, a quick first line, no chapters, the long video linked). New `references/shorts-playbook.md`.
+- `out/timeline.json` with every render: each slide's section, start, length and voice takes, to find a moment or cut a clip by time.
+
+## 0.1.0 (2026-11-18)
 
 First public release.
 
@@ -27,8 +34,6 @@ First public release.
 - Thumbnail messaging angles: each variant takes one angle (`explain`, `desire`, `fear`, `curiosity`, `proof`, `contrarian`, `identity`, `news`) that sets both its words and its picture, and A and B test two different angles by default (thumbnail playbook › Pick the angles first). New optional `angle` field in the thumbnail spec, a note the renderer ignores.
 - Optional Zentesimal integration: topics from real customer questions.
 - Emotion in the voice: `> TONE <name>` before a spoken line (`intrigue`, `suspense`, `surprise`, `excited`, `serious`, `warm`, `playful`) gives it its own delivery: a held pause before it, its own speed and pause cap, and for paid voices the acting itself (OpenAI per-line instructions on top of a default engaging-narrator one; ElevenLabs expressive settings and `eleven_v3` audio tags). `"expressive"` in `style.json` (or `--expressive`) scales it, 0 = off. The script playbook's new "Emotion and delivery" section gives the arc per section and the writing moves; `script-stats.mjs` counts the tones in its estimate and warns about a hook, idea or mid hook with no emotional turn, suspense that never pays off, a flat read or over-acting.
-- **Shorts from a long video**: once a video is approved, the skill proposes 5 standalone moments, you pick 3, and each becomes a 30–55 s vertical Short (1080×1920) with its own `[HOOK] [PAYOFF] [LOOP]` script, rendered by the same pipeline in the same look and voice (`"format": "short"` in its `style.json`, or `render-video.mjs --vertical`). Text stays in the Shorts safe zone, pictures keep their 16:9 drawing in a band under the text (`focus`, `fit`), captions are burned in 2–4 words at a time (`"captions": false` turns them off), and `script-stats.mjs` and `youtube-meta.mjs` check a Short's own rules (length, a quick first line, no chapters, the long video linked). New `references/shorts-playbook.md`.
-- `out/timeline.json` with every render: each slide's section, start, length and voice takes, to find a moment or cut a clip by time.
 - The setup questions are a gate: `script-stats.mjs` fails a script whose `style.json` lacks the level, language, length, look, pace or voice (`"format": "presenter"` needs only the first three).
 - Free or OpenAI, asked per video before the voice: the free local voice and vector scenes, or an OpenAI voice that acts the tones plus generated illustrations (or either one alone). `scripts/providers.mjs` reports whether the keys are there (never their values); `voice-samples.mjs --provider openai` plays the OpenAI candidates (`coral`, `sage`, `onyx`) in the video's language. `illustrations` joins the setup gate.
 - Keys and `.env`: every script reads its variables through `scripts/env.mjs` in one fixed order (the environment, then the project's `.env`), with full `.env` syntax (`export`, quotes, comments); `references/env.example` lists every variable. First-run setup adds `.env` to `.gitignore`.
