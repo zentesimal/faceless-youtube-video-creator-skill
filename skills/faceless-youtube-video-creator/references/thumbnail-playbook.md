@@ -91,6 +91,10 @@ A lone character in the scene is drawn larger than on a slide (it's the subject)
 - Nothing misleading: the chat bubbles in a `chat` thumbnail show text that happens in the video.
 - No other company's logo or a real person's face other than the presenter.
 
+## Vertical covers (Shorts)
+
+The same renderer makes a Short's cover at 1080×1920 when the spec has `"format": "short"` (or the Short's `style.json` does, or `--vertical`): `cover-A.png`, `cover-B.png` and a `compare.png` that shows each on the Shorts shelf, in a 3:4 profile-grid crop and small. Layouts `bold`, `question`, `title`, `mood`, `card`; text inside x 60–1020, y 240–1540 (exit 2 otherwise). There's no A/B test for Shorts, so the user picks one: `--pick A` copies it to `cover.png`. Rules for the cover: shorts playbook › Cover.
+
 ## Spec
 
 `thumbs/spec.json`:

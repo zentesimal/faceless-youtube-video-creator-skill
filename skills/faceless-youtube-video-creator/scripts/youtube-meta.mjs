@@ -11,8 +11,9 @@
 //   thumbnails (["thumbs/thumb-A.png", "thumbs/thumb-B.png"]) · captions ("out/video.srt") · pinnedComment
 //
 // A Short ($W/style.json "format": "short", or --short) is checked as one: title ≤ 70 recommended, no chapters
-// or thumbnails (YouTube shows a frame), captions "out/short.srt", the description links the long video
-// (`longVideo`: its URL, also set as the Short's Related video in Studio), `#Shorts` in the title or description.
+// or A/B thumbnails, `cover` ("cover/cover.png": the approved 1080×1920 cover from render-thumbnails.mjs),
+// captions "out/short.srt", the description links the long video (`longVideo`: its URL, also set as the Short's
+// Related video in Studio), `#Shorts` in the title or description.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
@@ -42,6 +43,7 @@ const d = {
   containsSyntheticMedia: false,
   thumbnails: SHORT ? [] : ['thumbs/thumb-A.png', 'thumbs/thumb-B.png'],
   captions: SHORT ? 'out/short.srt' : 'out/video.srt',
+  ...(SHORT ? { cover: 'cover/cover.png' } : {}),
   ...m
 }
 
@@ -112,16 +114,32 @@ for (const t of d.thumbnails) {
   else if (statSync(p).size > 2 * 1048576) problems.push(`${t} is over 2 MB (YouTube's limit)`)
 }
 if (SHORT && d.thumbnails.length)
-  warnings.push(
-    "Shorts don't take an uploaded thumbnail in most cases: pick a frame in the app instead"
-  )
+  warnings.push('a Short has no A/B thumbnails: put the approved cover in `cover` instead')
+// the cover: a 1080×1920 PNG (or JPEG) ≤ 2 MB
+if (SHORT) {
+  const p = d.cover && join(W, d.cover)
+  if (!p || !existsSync(p))
+    warnings.push(
+      `no cover at ${d.cover || 'cover/cover.png'} yet (render-thumbnails.mjs … --pick)`
+    )
+  else {
+    if (statSync(p).size > 2 * 1048576) problems.push(`${d.cover} is over 2 MB`)
+    const b = readFileSync(p)
+    if (b.readUInt32BE(0) === 0x89504e47) {
+      const [w, h] = [b.readUInt32BE(16), b.readUInt32BE(20)]
+      if (w * 16 !== h * 9)
+        warnings.push(`${d.cover} is ${w}×${h}; a Short's cover is 1080×1920 (9:16)`)
+    }
+  }
+}
 if (d.captions && !existsSync(join(W, d.captions))) warnings.push(`no subtitles at ${d.captions}`)
 if (!d.pinnedComment) warnings.push('no pinnedComment')
 
 console.log(`title       ${title}`)
 console.log(`description ${Buffer.byteLength(desc)} bytes · ${chapters.length} chapters`)
 console.log(`tags        ${tags.length} (${tagChars} characters)`)
-console.log(`thumbnails  ${d.thumbnails.join(', ') || '— (a frame of the Short)'}`)
+if (SHORT) console.log(`cover       ${d.cover || '—'}`)
+else console.log(`thumbnails  ${d.thumbnails.join(', ') || '—'}`)
 if (SHORT) console.log(`long video  ${d.longVideo || '—'}`)
 console.log(`subtitles   ${d.captions || '—'} (${d.language})`)
 console.log(

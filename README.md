@@ -25,7 +25,7 @@ Built and used by [Zentesimal](https://zentesimal.com/?utm_source=github&utm_med
    Make a YouTube video about why AI models make things up
    ```
 
-   The first time, it asks four questions (channel name, what the channel is about, the look, extras) and saves them in `faceless-youtube.config.json`. Every video then starts with the same short setup: how technical your viewer is, the topic (type one, or pick from your topic sheet), the length (8–20 minutes), the language (English or Spanish for now) and whether to research it first; then free or OpenAI (the free local voice and vector scenes, or an OpenAI voice that acts the script plus generated illustrations; your key goes in the folder's `.env`), the look, the pace, the voice (with samples) and animations. Then it picks the angle with you, writes the script, renders, and hands you the files.
+   The first time, it asks four questions (channel name, what the channel is about, the look, extras) and saves them in `faceless-youtube.config.json`. Every video then starts with the same short setup: how technical your viewer is (or whether they're developers), the topic (type one, or pick from your topic sheet), the length (8–20 minutes), the language (English or Spanish for now) and whether to research it first; then free or OpenAI (the free local voice and vector scenes, or an OpenAI voice that acts the script plus generated illustrations; your key goes in the folder's `.env`), the look, the pace, the voice (with samples) and animations. Then it picks the angle with you, writes the script, renders, and hands you the files.
 
 ## What you get
 
@@ -35,7 +35,7 @@ For each video, in `videos/<date>-<slug>/`:
 - `out/video.srt` and `out/chapters.txt`: subtitles and **real** chapter times for the description.
 - `youtube.md`: three title options, the description, tags, a pinned comment and the end-screen plan.
 - `thumbs/thumb-A.png`, `thumbs/thumb-B.png`: two thumbnails that test one hypothesis, for YouTube's Test & compare. You review them before delivery, and the skill re-renders from your feedback until you approve both.
-- `shorts/<n>-<slug>/out/short.mp4` (when you ask, once the video is approved): three vertical Shorts, 30–55 s, in the same look and voice, with burned-in captions.
+- `shorts/<n>-<slug>/out/short.mp4` (when you ask, once the video is approved): three vertical Shorts, 30–55 s, in the same look and voice, with burned-in captions, each with its `cover/cover.png` (a 1080×1920 cover image to upload with it).
 - `script.md`, `brief.md`: the script (with every slide cue) and the research behind it, with sources.
 
 ## What it does
@@ -55,7 +55,7 @@ For each video, in `videos/<date>-<slug>/`:
 - **Story teller mode**: a generated illustration for every sentence, so the picture follows the voice like a picture book read aloud, with a camera move on each picture and a dissolve between them. Describe your recurring characters once and they look the same in every picture. About 100 pictures for an 8-minute video (billed by OpenAI; the skill gives you the exact count before anything is spent).
 - **A channel kit**: one `channel/` folder with your channel brief, logo, avatar and the description, keywords and upload defaults to paste into YouTube Studio.
 - **Upload-ready metadata**: `youtube.json` with the title, description (chapters included), tags, category and disclosure answers to paste into YouTube Studio, checked against YouTube's limits.
-- **Shorts from every video**: it proposes five moments that stand on their own, you pick three, and each is rewritten as a 30–55 s Short (hook, payoff, a line that loops) and rendered vertically with big captions, ready to link to the long video.
+- **Shorts from every video**: it proposes five moments that stand on their own, you pick three, and each is rewritten as a 30–55 s Short (hook, payoff, a line that loops) and rendered vertically with big captions, ready to link to the long video. Each Short also gets a cover image: two designs on different angles, you pick the one that ships.
 - **Never uploads anything.** You review and publish.
 
 ## Configuration

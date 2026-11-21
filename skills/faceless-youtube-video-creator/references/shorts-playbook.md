@@ -53,7 +53,18 @@ The renderer handles the layout; what you control is what goes on each slide.
 - **Pictures** (`scene`, `illustration`, `flow`) keep their 1920×1080 drawing, scaled into a band under the text: by default 0.8× (the middle ~70 % shows), `"focus": <x>` (in the 1920 frame) centres another spot, `"fit": true` shows the whole picture smaller. A scene's `text` goes on a plate above the picture, and the cast stands as if there were no text.
 - **Hard to read on a phone**: `table`, `doc`, `fields`, `flow` (the renderer warns). Turn a table into a `number` or a `chat`, a doc into a `quote` of its one line.
 - **Not in a Short**: chapter cards, `subscribe`, `end`, the label, the logo and the progress bar (YouTube draws its own).
-- **The first frame** is what people see in the feed and what the app offers as the cover: make slide 1 readable on its own.
+- **The first frame** is what people see when the Short starts playing in the feed: make slide 1 readable on its own. The cover (below) is a separate picture.
+
+## Cover
+
+A cover is the Short's thumbnail: what sells the click on the Shorts shelf, in a channel's Shorts tab and in TikTok and Instagram profile grids, where nothing plays yet. It's a separate 1080×1920 picture, rendered by `render-thumbnails.mjs` from `cover/spec.json` with `"format": "short"`, in the same look as the Short. Everything in the thumbnail playbook applies (angles, ≤ 4 words, one highlight, words and picture pulling the same way); what changes:
+
+- **The angle comes from the Short's hook**, not from the long video's thumbnails: the Short has its own promise. Draft one headline per angle, then A and B from different angles. The user picks one: YouTube has no Test & compare for Shorts.
+- **Headline on top, picture under it.** Layouts: `bold` (headline + mascot, photo or doodle under it), `question`, `title`, `mood` (over a full-height scene) and `card` (the white card over the picture). `chat` and `versus` don't read at phone-cover size, and the renderer refuses them.
+- **Safe zone**: text in x 60–1020, y 240–1540. Profile grids crop the cover to its middle 3:4 (y 240–1680) and the Shorts shelf writes the title over the bottom ~380 px, so the bottom band is picture only. The renderer fails a cover whose text leaves the zone.
+- **Scenes**: the 16:9 scene fills the tall frame, so only its middle ~600 px (of 1920) show. The cast stands close together in the middle; `"focus": <x>` in `scene` centres the crop on another spot. One character reads best; two or three get small.
+- **Check `compare.png`**: each cover on the shelf (with the title over it), in the 3:4 grid crop and at 120 px. Read the headline at the smallest size.
+- Once approved: `render-thumbnails.mjs …/cover/spec.json --pick <A|B>` copies it to `cover/cover.png`.
 
 ## Packaging
 
@@ -62,7 +73,8 @@ The renderer handles the layout; what you control is what goes on each slide.
 - `title` ≤ 70 characters: the hook as a statement or a question, not the long video's title;
 - `description`: 1–2 lines, the long video's URL, `#Shorts` and 2–3 topic hashtags;
 - `longVideo`: the long video's URL; set it as the Short's **Related video** in Studio (no API sets it);
+- `cover`: `cover/cover.png`, the approved cover (below);
 - `tags`, `language`, `containsSyntheticMedia`, `madeForKids` as for the long video;
-- no chapters, no thumbnails.
+- no chapters, no A/B thumbnails.
 
 Publish after the long video, a few days apart, and add each Short's URL to the topic sheet row's `related_links`.

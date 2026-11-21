@@ -41,6 +41,19 @@ How it shapes each part:
 - **Research**: at 3–5, every number and claim gets a source (§2b recommended); at 0–2, still check facts, but put the numbers on screen sparingly (one per idea at most).
 - **Packaging**: titles and thumbnail words at the same level: outcome and plain words at 0–2 ("Why ChatGPT forgets what you said"), the precise term at 4–5 ("Context windows: why 200k tokens isn't 200k").
 
+### Audience: developer (solo / indie)
+
+An audience is **who** the viewer is; the level is **how deep** the AI part goes. `"audience": "developer"` in `style.json` (saved with a level, 4 by default; 3 for a developer new to AI, 5 for one who already trains or evaluates models) is for someone who writes code for a living or ships side projects alone: fluent in their stack, short on time, maybe new to how LLMs work. On top of the level's row:
+
+- **Hook**: a moment from their week: the AI-written function that passed review and broke prod, the API bill after a weekend launch, the agent that looped for an hour. A number they'd feel (cost, latency, lines, hours).
+- **Comparisons**: from programming, not from everyday life: the context window as a fixed-size buffer, the system prompt as config, a token as a variable-length encoding, embeddings as a hash that keeps meaning, temperature as a random seed's spread. One per mechanism, reused through the video.
+- **Words**: software words (API, JSON, endpoint, SDK, regex, webhook, env var, repo, deploy, latency) are never defined; it talks down. AI terms still follow the level (defined once at 3, assumed at 4–5).
+- **Proof on screen**: real code, terminal output, a diff, a config, a request and its response, a bill or a timing (`doc` slides, `chat` for prompts), at least once per idea. Name the tools (an SDK, an editor's AI assistant, a CLI) only when the video uses them, and never invent output.
+- **Ideas**: things they can paste into their project today: the pattern, the guard, the setting, the eval, with its cost and the case where it fails. Solo means no team to catch mistakes: favour checks they can automate.
+- **Packaging**: the stack or the tool in the title and thumbnail words ("LLM API: cut your bill in half", `identity` angle: "FOR SOLO DEVS"); the description links the code if there is a repo or gist.
+
+`script-stats.mjs` with `"audience": "developer"`: the software words above don't count toward the level's term ceiling (they do count toward the level 4–5 floor), and a video with no `doc` slide warns.
+
 `script-stats.mjs` reads `level` from `style.json` (or `--level`): it counts the technical terms the script says out loud and warns when a level 0–2 script uses more than the table allows (listing them, so each gets its definition and comparison), when a level 4–5 script uses almost none (probably too basic), and when `minutes` is far from the level's range. Its built-in term list is about AI; for another field, list the field's own jargon in `style.json` (`"terms": ["mulch", "pH", "NPK"]`) and it counts those too.
 
 ## Structure

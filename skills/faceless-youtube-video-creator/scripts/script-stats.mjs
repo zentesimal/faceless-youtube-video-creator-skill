@@ -4,7 +4,9 @@
 //   node script-stats.mjs <script.md> [--wpm 185] [--minutes 15] [--min 12] [--max 18] [--beat 0.6] [--level 2]
 //
 //   level    the viewer level (0–5) from style.json, or --level: counts the technical terms the voice says and
-//            warns when there are too many for a level 0–2 viewer, too few for 4–5, or the length doesn't fit
+//            warns when there are too many for a level 0–2 viewer, too few for 4–5, or the length doesn't fit.
+//            "audience": "developer" (a solo / indie developer): software words (API, JSON, endpoint, SDK, regex,
+//            webhook) count as known, and a video with no `doc` slide (real code, a terminal, a config) warns
 //
 //
 //   beats    each `> BEAT` cue and every section's last line but the outro's add a beat (style.json `beat`,
@@ -518,6 +520,29 @@ for (const term of Array.isArray(styleJson.terms) ? styleJson.terms : [])
     term,
     new RegExp('\\b' + term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b')
   ])
+// a developer audience (script playbook › Audience: developer): fluent in code, maybe new to AI. Software words
+// aren't jargon to them; the AI terms still follow the level.
+const AUDIENCE = styleJson.audience ?? null
+const DEV = AUDIENCE === 'developer'
+if (AUDIENCE != null && !DEV)
+  warnings.push(
+    `style.json "audience" is "${AUDIENCE}"; the only audience is "developer" (or leave it out)`
+  )
+const DEV_KNOWN = new Set([
+  'API',
+  'endpoint',
+  'JSON',
+  'schema',
+  'SDK',
+  'regex',
+  'webhook',
+  'latency',
+  'throughput'
+])
+if (DEV && !slides.some((sl) => sl.spec.layout === 'doc'))
+  warnings.push(
+    'audience developer: no `doc` slide. Developers trust what they can read: show the real code, the terminal output or the config at least once per idea'
+  )
 if (Number.isFinite(LEVEL)) {
   const L = LEVELS[Math.round(LEVEL)]
   if (!L) problems.push(`level ${LEVEL} is outside 0–5 (style.json "level")`)
@@ -526,16 +551,18 @@ if (Number.isFinite(LEVEL)) {
       .flatMap((s) => s.spoken)
       .join('\n')
       .toLowerCase()
-    const used = TERMS.filter(([, re]) => re.test(said)).map(([t]) => t)
-    levelLine = `viewer level ${LEVEL} (${L.name}): ${used.length} technical term${used.length === 1 ? '' : 's'} said${used.length ? ': ' + used.join(', ') : ''}`
+    const all = TERMS.filter(([, re]) => re.test(said)).map(([t]) => t)
+    // the ceiling (too many for the level) skips what a developer already knows; the floor counts everything
+    const used = DEV ? all.filter((t) => !DEV_KNOWN.has(t)) : all
+    levelLine = `viewer level ${LEVEL} (${L.name}${DEV ? ', developer audience' : ''}): ${used.length} technical term${used.length === 1 ? '' : 's'} said${used.length ? ': ' + used.join(', ') : ''}`
     if (used.length > L.terms)
       warnings.push(
         `level ${LEVEL} allows about ${L.terms} technical terms; the script says ${used.length} (${used.join(', ')}). ` +
           "Cut the ones the viewer won't meet again; give each one you keep a one-sentence definition and an everyday comparison the first time it's said"
       )
-    if (L.floor && used.length < L.floor)
+    if (L.floor && all.length < L.floor)
       warnings.push(
-        `level ${LEVEL} viewers expect the technical vocabulary, but the script says only ${used.length} technical term${used.length === 1 ? '' : 's'}: is it too basic for them?`
+        `level ${LEVEL} viewers expect the technical vocabulary, but the script says only ${all.length} technical term${all.length === 1 ? '' : 's'}: is it too basic for them?`
       )
     if (HAS_TARGET && (TARGET < L.min - 2 || TARGET > L.max + 2))
       warnings.push(

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 (2026-11-21)
+
+Covers for Shorts, and a developer audience.
+
+- **A cover for every Short**: a click-driving 1080×1920 cover image, designed like the long video's thumbnails (a messaging angle, ≤ 4 words, one highlight, the mascot or a scene), for the Shorts shelf, a channel's Shorts tab and TikTok / Instagram grids. You see two covers on different angles, approve or give feedback (same review loop as the thumbnails), and pick the one that ships: `render-thumbnails.mjs` renders `cover-A.png` / `cover-B.png` when the spec (or the Short's `style.json`) has `"format": "short"`, and `--pick A` copies the winner to `cover.png`. The compare sheet shows each cover on the Shorts shelf, in a profile grid's 3:4 crop and small; text outside the cover's safe zone fails the render. Layouts: `bold`, `question`, `title`, `mood`, `card`.
+- `youtube-meta.mjs` checks a Short's `cover` (exists, ≤ 2 MB, 9:16).
+- **Developer audience**: the first question now offers `Developer (solo / indie)` next to the viewer levels. It saves `"audience": "developer"` with a level (4 by default) and changes the hooks, comparisons (from programming, not everyday life), proof (real code, terminal output, configs and costs on screen) and packaging, not the depth. `script-stats.mjs` stops counting software words (API, JSON, endpoint, SDK, …) as jargon for that audience, and warns when a developer video shows no code. See `references/script-playbook.md` › Audience: developer.
+
 ## 0.3.0 (2026-11-20)
 
 Story teller mode.

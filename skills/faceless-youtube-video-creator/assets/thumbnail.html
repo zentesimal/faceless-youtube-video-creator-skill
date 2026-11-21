@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  YouTube thumbnail, 1280×720 (16:9). render-thumbnails.mjs fills the placeholders below (fonts, logo,
+  YouTube thumbnail, 1280×720 (16:9), or a Short's cover, 1080×1920 (html.vertical). render-thumbnails.mjs fills the placeholders below (fonts, logo,
   one variant of the spec, the photo as a data URL) and screenshots #stage.
   Layouts: "bold" (huge headline + face/mascot), "versus" (headline + two panels), "chat" (prompt/answer + headline),
   and four styles common in the feed, drawn over a full-bleed picture (a `scene` from scenes.js, or the photo):
@@ -613,6 +613,101 @@
         right: 60px;
         top: 40px;
       }
+      /* ---------- vertical: a Short's cover, 1080×1920 (html.vertical, render-thumbnails.mjs) ----------
+         Text stays in y 240–1540, x 60–1020: inside the 3:4 centre crop of profile grids (y 240–1680) and
+         above the bottom band where the Shorts shelf draws the title. Headline in the top half, the picture
+         (scene, photo, mascot) under it; the bottom band is picture only. Layouts: bold, question, title,
+         mood, card. */
+      :root.vertical,
+      :root.vertical body,
+      .vertical #stage {
+        width: 1080px;
+        height: 1920px;
+      }
+      .vertical #stage .logo,
+      .vertical #stage.title .logo {
+        left: 80px;
+        right: auto;
+        top: 140px;
+        bottom: auto;
+      }
+      .vertical #stage .sticker {
+        left: auto;
+        right: 80px;
+        top: 150px;
+      }
+      .vertical #stage.bold .sticker {
+        right: auto;
+        left: 86px;
+        top: 270px;
+      }
+      .vertical .pic.shade::after {
+        background: linear-gradient(rgba(0, 0, 0, 0.6), transparent 50%);
+      }
+      .vertical .bold .textbox {
+        left: 80px;
+        width: 920px;
+        top: 300px;
+        height: 680px;
+      }
+      .vertical .bold.full .textbox {
+        width: 920px;
+        height: 1180px;
+      }
+      .vertical .bold.has-sticker .textbox {
+        top: 400px;
+        height: 600px;
+      }
+      .vertical .bold .visual,
+      .vertical .card .visual {
+        left: 0;
+        right: 0;
+        width: auto;
+        top: 1010px;
+        bottom: 330px;
+        height: auto;
+      }
+      .vertical .bold .visual .ghost,
+      .vertical .card .visual .ghost {
+        width: 470px;
+        margin-bottom: 0;
+      }
+      .vertical .visual svg.doodle {
+        width: 640px;
+        height: 520px;
+        margin-bottom: 0;
+      }
+      .vertical .question .textbox {
+        left: 60px;
+        right: 60px;
+        top: 250px;
+        height: 560px;
+        align-items: flex-start;
+      }
+      .vertical .title .textbox {
+        left: 80px;
+        top: 290px;
+        width: 920px;
+        height: 620px;
+      }
+      .vertical .title .tag {
+        left: 86px;
+        bottom: auto;
+        top: 940px;
+        font-size: 54px;
+      }
+      .vertical .mood .textbox {
+        left: 80px;
+        top: 270px;
+        width: 920px;
+        height: 520px;
+      }
+      .vertical .card .textbox {
+        left: 70px;
+        top: 280px;
+        width: 940px;
+        height: 640px;
+      }
     </style>
   </head>
   <body>
@@ -639,6 +734,8 @@
         const V = window.V || {}
         const stage = document.getElementById('stage')
         const layout = V.layout || 'bold'
+        // a Short's cover (1080×1920): the renderer puts class="vertical" on <html>
+        const VERT = document.documentElement.classList.contains('vertical')
         stage.className = layout + (V.theme === 'light' ? ' light' : '') + (V.paint ? ' paint' : '')
         const esc = (s) =>
           String(s ?? '').replace(
@@ -766,9 +863,23 @@
                 typeof m === 'string' ? { who: m.split(':')[0], pose: m.split(':')[1] } : m
               )
               const boost = { question: 1.45, title: 1.4, mood: 1.5, card: 1.35 }[layout]
-              if (cast.length === 1) S.cast = [{ ...cast[0], size: cast[0].size ?? boost }]
-              const sc = window.scene(S, { textMode: layout === 'question' ? 'top' : 'left' })
+              if (VERT) {
+                // the 16:9 scene fills the tall frame (only the middle ~600 px of its 1920 show), so the
+                // cast stands close together in the middle, at slide size, under the headline
+                const xs = { 1: [960], 2: [820, 1100], 3: [760, 960, 1160] }[cast.length] || []
+                const k = { 1: 0.85, 2: 0.62, 3: 0.5 }[cast.length] || 1
+                S.cast = cast.map((m, i) => ({ ...m, x: m.x ?? xs[i], size: m.size ?? k }))
+              } else if (cast.length === 1) S.cast = [{ ...cast[0], size: cast[0].size ?? boost }]
+              const sc = window.scene(S, {
+                textMode: VERT ? 'none' : layout === 'question' ? 'top' : 'left'
+              })
               pic.innerHTML = sc.svg
+              // `focus`: the x in the 1920 scene to centre the tall crop on
+              const svg = VERT && pic.querySelector('svg.scene')
+              if (svg) {
+                const f = Math.min(1617, Math.max(303, Number(S.focus ?? 960)))
+                svg.setAttribute('viewBox', `${f - 960} 0 1920 1080`)
+              }
             }
           } else {
             stage.classList.add('no-pic')
@@ -848,10 +959,14 @@
         const fitsBox = (el) =>
           el.scrollWidth <= el.clientWidth + 1 &&
           el.scrollHeight <= el.parentElement.clientHeight + 1
+        const MIN = VERT ? (layout === 'card' ? 72 : 110) : layout === 'card' ? 56 : 84
         if (h1) {
-          const start = { question: 200, title: 240, mood: 160, card: 104 }[layout] || 168
+          const start =
+            (VERT
+              ? { question: 280, title: 260, mood: 200, card: 140, bold: 230 }
+              : { question: 200, title: 240, mood: 160, card: 104 })[layout] || 168
           let size = V.textSize || start
-          const min = layout === 'card' ? 56 : 84
+          const min = MIN
           h1.style.fontSize = size + 'px'
           while (size > min && !fitsBox(h1)) {
             size -= 4
@@ -860,6 +975,17 @@
           window.TEXT_SIZE = size
           // the card hugs its text once the size is set
           if (layout === 'card') h1.parentElement.style.height = 'auto'
+          // vertical title: the tag sits right under the headline's last line
+          const tag = VERT && stage.querySelector('.tag')
+          if (tag) {
+            const range = document.createRange()
+            range.selectNodeContents(h1)
+            const rects = [...range.getClientRects()]
+            const bottom = rects.length
+              ? Math.max(...rects.map((r) => r.bottom))
+              : h1.getBoundingClientRect().bottom
+            tag.style.top = Math.round(bottom + 34) + 'px'
+          }
         }
 
         window.check = function () {
@@ -871,27 +997,43 @@
           if (V.highlight && text.indexOf(V.highlight) < 0)
             issues.push('highlight "' + V.highlight + '" is not in the text')
           if (h1 && !fitsBox(h1))
+            issues.push('headline does not fit even at ' + MIN + 'px: shorten it')
+          if (VERT && (layout === 'chat' || layout === 'versus'))
             issues.push(
-              'headline does not fit even at ' + (layout === 'card' ? 56 : 84) + 'px: shorten it'
+              `"${layout}" doesn't read on a phone cover: use bold, question, title, mood or card`
             )
           if (V.tag && V.tag.length > 24) warnings.push('tag is over 24 characters')
           for (const el of fits)
             if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2)
               issues.push('a ' + el.className.split(' ')[0] + ' overflows: shorten its text')
           if (V.sticker && V.sticker.length > 14) warnings.push('sticker is over 14 characters')
-          // YouTube draws the video length in the bottom-right corner
-          const zone = { l: 1110, t: 640 }
-          stage
-            .querySelectorAll('.headline, .sticker, .tag, .bubble, .panel .lines > div')
-            .forEach((el) => {
+          const texts = stage.querySelectorAll(
+            '.headline, .sticker, .tag, .bubble, .panel .lines > div'
+          )
+          if (VERT) {
+            // a cover: text inside the 3:4 grid crop (y 240–1680) and above the shelf's title band (1540)
+            texts.forEach((el) => {
+              const r = el.getBoundingClientRect()
+              if (r.top < 236 || r.bottom > 1544 || r.left < 56 || r.right > 1024)
+                issues.push(
+                  'a ' +
+                    el.className.split(' ')[0] +
+                    ' leaves the cover safe zone (x 60–1020, y 240–1540): shorten it'
+                )
+            })
+          } else {
+            // YouTube draws the video length in the bottom-right corner
+            const zone = { l: 1110, t: 640 }
+            texts.forEach((el) => {
               const r = el.getBoundingClientRect()
               if (r.right > zone.l && r.bottom > zone.t)
                 warnings.push(
                   'text reaches the bottom-right corner, where YouTube shows the duration'
                 )
             })
+          }
           return {
-            issues,
+            issues: [...new Set(issues)],
             warnings: [...new Set(warnings)],
             textSize: window.TEXT_SIZE || null,
             words
