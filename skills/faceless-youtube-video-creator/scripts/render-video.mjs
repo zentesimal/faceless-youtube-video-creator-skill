@@ -24,12 +24,16 @@
 // (until the next cue) are that slide's voiceover. `> TONE <name>` right before a spoken line sets how that line is
 // delivered (suspense, surprise, …; tones.mjs): a held pause before it, its own speed and pauses, and for paid
 // voices the acting itself. style.json "expressive" (or --expressive) scales it; 0 = one flat tone.
+// Story teller (style.json "mode": "storyteller"; storyteller.mjs): every sentence is its own slide with its own
+// generated illustration. The renderer checks one sentence per picture, crossfades between pictures at any pace,
+// pushes into still pictures, and with animations on gives each picture its own camera move (camera "auto").
 // Exit code 2 = a slide overflows or runs too long for the pace, a spoken line has no slide, or the script is malformed.
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { STORY_FADE, STORY_MAX, STORY_MOVES, isStoryteller, storyChecks } from './storyteller.mjs'
 import {
   channel,
   dataUrl,
@@ -130,7 +134,18 @@ const PACES = {
   4: { max: 7, fade: 0.2, push: 'all', zoom: 0.04 },
   5: { max: 5, fade: 0.15, push: 'all', zoom: 0.05, punch: ['word'] }
 }
-const P = PACES[PACE]
+// story teller: the cut is the sentence, so a picture holds for its sentence (≤ STORY_MAX s at any pace), and
+// pictures dissolve into each other and push in slowly even at pace 1–2
+const STORY = isStoryteller(style)
+const P = { ...PACES[PACE] }
+if (STORY) {
+  P.max = STORY_MAX
+  P.fade = Math.max(P.fade, STORY_FADE)
+  if (P.push !== 'all') P.push = [...P.push, 'illustration']
+  P.zoom = Math.max(P.zoom, 0.04)
+}
+// a slide far over its max stops the render from pace 3, and always in story-teller mode
+const HARD = PACE >= 3 || STORY
 const FPS = 30
 // animations: "auto" = entrances etc. on every layout that suits them (window.anim in slide.html)
 const ANIM = /^(auto|on|true)$/.test(String(flag('--anim', String(style.animate ?? 'off'))))
@@ -139,10 +154,13 @@ const animated = (s) => ANIM && s.animate !== false && !STILL.includes(s.layout)
 // camera: one slow move with parallax over the whole slide on scene and illustration slides (slide.html ›
 // camera). A cue's "camera" wins; else style.json "camera" ("auto" = a drift on illustrations and layered
 // scenes; a move name applies it to every scene and illustration); else none. Only with animations on.
-const CAMERA = flag('--camera', style.camera ?? 'off')
+// Story teller: camera "auto" by default, and "auto" gives each picture the next move in STORY_MOVES.
+const CAMERA = flag('--camera', style.camera ?? (STORY ? 'auto' : 'off'))
 const cameraFor = (s) => {
   if (!animated(s)) return undefined
-  const c = s.camera ?? (['scene', 'illustration', 'flow'].includes(s.layout) ? CAMERA : 'off')
+  let c = s.camera ?? (['scene', 'illustration', 'flow'].includes(s.layout) ? CAMERA : 'off')
+  if (STORY && c === 'auto' && s.layout === 'illustration' && s._shot != null)
+    c = STORY_MOVES[s._shot % STORY_MOVES.length]
   return c === 'off' || c === 'none' || c === false ? undefined : c
 }
 
@@ -274,6 +292,14 @@ for (const c of cues) {
       })
     else slides.push({ ...c, ...base, reveal: undefined, visible: i + 1, current: i, done: i })
   })
+}
+// story teller: one sentence per picture (storyteller.mjs)
+if (STORY) {
+  const sc = storyChecks(slides)
+  problems.push(...sc.problems)
+  for (const w of sc.warnings) console.warn('warning: ' + w)
+  let shot = 0
+  for (const s of slides) if (s.layout === 'illustration') s._shot = shot++
 }
 if (problems.length) {
   problems.forEach((p) => console.error('PROBLEM: ' + p))
@@ -537,13 +563,12 @@ const fmt = (sec) => {
 // a slide is far too long for the pace. The voice is cached, so the re-run after the fix buys nothing again.
 if (!onlySlides) {
   const far = all.filter(
-    (s) =>
-      s.say.length && !['end', 'subscribe'].includes(s.layout) && PACE >= 3 && s.dur > P.max * 1.3
+    (s) => s.say.length && !['end', 'subscribe'].includes(s.layout) && HARD && s.dur > P.max * 1.3
   )
   if (far.length) {
     for (const s of far)
       console.error(
-        `PROBLEM [${s.id}, script line ${s.line}, ${s.layout}] ${s.dur.toFixed(1)}s on screen with the real voice; pace ${PACE} wants ≤ ${P.max}s: add a SLIDE cue between its lines (no new words, nothing re-bought) or split a sentence`
+        `PROBLEM [${s.id}, script line ${s.line}, ${s.layout}] ${s.dur.toFixed(1)}s on screen with the real voice; ${STORY ? 'story teller' : `pace ${PACE}`} wants ≤ ${P.max}s: ${STORY ? 'split the sentence in two, each with its own picture' : 'add a SLIDE cue between its lines (no new words, nothing re-bought) or split a sentence'}`
       )
     await browser.close()
     stop(
@@ -841,8 +866,8 @@ const tooLong = all.filter(
   (s) => s.say.length && s.layout !== 'end' && s.layout !== 'subscribe' && s.dur > P.max
 )
 for (const s of tooLong) {
-  const hard = PACE >= 3 && s.dur > P.max * 1.3
-  const msg = `[${s.id}, script line ${s.line}, ${s.layout}] ${s.dur.toFixed(1)}s on screen; pace ${PACE} wants ≤ ${P.max}s: split it (another cue, or reveal on points)`
+  const hard = HARD && s.dur > P.max * 1.3
+  const msg = `[${s.id}, script line ${s.line}, ${s.layout}] ${s.dur.toFixed(1)}s on screen; ${STORY ? 'story teller' : `pace ${PACE}`} wants ≤ ${P.max}s: ${STORY ? 'split the sentence, each half with its own picture' : 'split it (another cue, or reveal on points)'}`
   if (hard) {
     console.error('PROBLEM ' + msg)
     failed = true
@@ -880,7 +905,7 @@ await browser.close()
 if (failed) stop('fix the slide problems above and re-run.', 2)
 
 console.log(
-  `${onlySlides ? 'estimated' : 'total'} length ${fmt(total)} (${all.length} slides, pace ${PACE}: ≤ ${P.max}s a slide${P.fade ? `, ${P.fade}s crossfades` : ', cuts'}${P.push.length ? ', push-ins' : ''})`
+  `${onlySlides ? 'estimated' : 'total'} length ${fmt(total)} (${all.length} slides, ${STORY ? `story teller, ${all.filter((s) => s.layout === 'illustration').length} pictures, pace ${PACE}: ≤ ${P.max}s a sentence` : `pace ${PACE}: ≤ ${P.max}s a slide`}${P.fade ? `, ${P.fade}s crossfades` : ', cuts'}${P.push.length ? ', push-ins' : ''})`
 )
 {
   // `minutes` (8–20) from style.json is the target: warn when the render lands over a minute off it

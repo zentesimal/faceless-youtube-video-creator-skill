@@ -20,6 +20,11 @@
 //            spoken line, a `points` / `flow` with `reveal` has one spoken line per item, and no slide stays up
 //            longer than the pace allows (style.json "pace": ≤ 20 / 15 / 10 / 7 / 5 s; PROBLEM past 1.3× from pace 3)
 //
+//   story    with style.json "mode": "storyteller" (storyteller.mjs): one sentence per spoken line, one picture per
+//            sentence (an `illustration` cue before every line; other layouts only for real proof), ≤ 12 s each,
+//            "illustrations": true unless every picture has a `src`, and every {Name} in a prompt described in
+//            style.json "characters"; prints how many pictures the video needs
+//
 //   setup    the answers asked before the script (SKILL.md §1a–1b) must be in style.json: level, language,
 //            minutes, the look (preset or style), pace, voice and illustrations (the free-or-OpenAI answer);
 //            only the first three for "format": "presenter"
@@ -36,6 +41,13 @@
 //   exit 2   when a hard rule fails (missing/out-of-order section, missing reminder, length outside min–max)
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import {
+  STORY_MAX,
+  cuePrompts,
+  isStoryteller,
+  storyChecks,
+  unknownCharacters
+} from './storyteller.mjs'
 import { TONE_NAMES, delivery, parseTone } from './tones.mjs'
 import { voiceWpm } from './voices.mjs'
 
@@ -169,6 +181,7 @@ const IDEAS_MIN = MAX <= 10 ? 2 : 3
 const IDEAS_MAX = MAX <= 10 ? 3 : MAX <= 14 ? 4 : 5
 
 const EXPRESSIVE = Math.max(0, Number(styleJson.expressive ?? 1))
+const STORY = isStoryteller(styleJson)
 const sections = []
 const problems = []
 const warnings = []
@@ -265,7 +278,9 @@ if (slides.length) {
         `line ${s.orphan}: spoken text in [${s.label}] before its first SLIDE cue: every section opens with a SLIDE`
       )
   const PACE = Math.min(5, Math.max(1, Math.round(Number(styleJson.pace ?? 2))))
-  const MAX = { 1: 20, 2: 15, 3: 10, 4: 7, 5: 5 }[PACE]
+  // story teller: a picture holds for its sentence, ≤ STORY_MAX s at any pace
+  const MAX = STORY ? STORY_MAX : { 1: 20, 2: 15, 3: 10, 4: 7, 5: 5 }[PACE]
+  const HARD = PACE >= 3 || STORY
   // the voice's own rate (as the renderer estimates it); a slide also keeps a breath after its voice
   const SLIDE_WPM = WPM
   // the renderer's own estimate: words at the voice's rate, plus a tone's held pause before every line but the first
@@ -298,19 +313,49 @@ if (slides.length) {
           line: sl.line,
           layout: sp.layout || '?',
           secs,
-          hard: PACE >= 3 && secs > MAX * 1.3
+          hard: HARD && secs > MAX * 1.3
         })
     }
   }
   for (const l of long.filter((x) => x.hard))
     problems.push(
-      `line ${l.line} (${l.layout}): about ${l.secs.toFixed(1)} s on screen; pace ${PACE} wants ≤ ${MAX} s: add a SLIDE cue before its next line, split a long sentence, or reveal a list`
+      STORY
+        ? `line ${l.line} (${l.layout}): about ${l.secs.toFixed(1)} s on one picture; story teller wants ≤ ${MAX} s: split the sentence in two, each with its own picture`
+        : `line ${l.line} (${l.layout}): about ${l.secs.toFixed(1)} s on screen; pace ${PACE} wants ≤ ${MAX} s: add a SLIDE cue before its next line, split a long sentence, or reveal a list`
     )
   const soft = long.filter((x) => !x.hard)
   if (soft.length)
     warnings.push(
-      `${soft.length} slide${soft.length === 1 ? '' : 's'} a little over pace ${PACE}'s ${MAX} s (lines ${soft.map((x) => x.line).join(', ')}): fine once in a while; split the ones that drag`
+      `${soft.length} slide${soft.length === 1 ? '' : 's'} a little over ${STORY ? 'story teller' : `pace ${PACE}`}'s ${MAX} s (lines ${soft.map((x) => x.line).join(', ')}): fine once in a while; split the ones that drag`
     )
+}
+
+// ---------- story teller: a picture per sentence (storyteller.mjs) ----------
+let storyLine = ''
+if (STORY && slides.length) {
+  // as the renderer builds them: a `reveal` list or flow is one slide per line
+  const built = slides.flatMap((sl) => {
+    const sp = sl.spec
+    const items = sp.layout === 'flow' ? sp.nodes : sp.layout === 'points' ? sp.points : null
+    return items && sp.reveal
+      ? sl.say.map((l) => ({ layout: sp.layout, say: [l], line: sl.line }))
+      : [{ layout: sp.layout, say: sl.say, line: sl.line }]
+  })
+  const sc = storyChecks(built, (l) => l.text)
+  problems.push(...sc.problems)
+  warnings.push(...sc.warnings)
+  const prompts = slides.flatMap((sl) => cuePrompts(sl.spec))
+  const unknown = [...new Set(prompts.flatMap((p) => unknownCharacters(p, styleJson.characters)))]
+  if (unknown.length)
+    problems.push(
+      `story teller: the prompts name ${unknown.map((n) => `{${n}}`).join(', ')}, but style.json "characters" doesn't describe ${unknown.length === 1 ? 'it' : 'them'}: add one description each (look, age, hair, clothes, colours), so they look the same in every picture`
+    )
+  if (prompts.length && styleJson.illustrations !== true)
+    problems.push(
+      `story teller draws a picture per sentence: style.json needs "illustrations": true (generated with OpenAI), or give every illustration a "src" from $W/assets/`
+    )
+  const pics = new Set(prompts).size
+  storyLine = `story teller: ${sc.sentences} sentences, ${pics} distinct picture prompt${pics === 1 ? '' : 's'} to generate; gen-images.mjs --dry-run gives the exact count before anything is billed`
 }
 
 // ---------- order ----------
@@ -602,6 +647,7 @@ console.log(
 )
 if (levelLine) console.log(levelLine)
 if (toneLine) console.log(toneLine)
+if (storyLine) console.log(storyLine)
 
 // ---------- outputs ----------
 const dir = dirname(file)

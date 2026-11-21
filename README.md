@@ -34,7 +34,7 @@ For each video, in `videos/<date>-<slug>/`:
 - `out/video.mp4`: 1920×1080, 8–20 minutes (you choose), AI voiceover over slides, loudness-normalised.
 - `out/video.srt` and `out/chapters.txt`: subtitles and **real** chapter times for the description.
 - `youtube.md`: three title options, the description, tags, a pinned comment and the end-screen plan.
-- `thumbs/thumb-A.png`, `thumbs/thumb-B.png`: two thumbnails that test one hypothesis, for YouTube's Test & compare.
+- `thumbs/thumb-A.png`, `thumbs/thumb-B.png`: two thumbnails that test one hypothesis, for YouTube's Test & compare. You review them before delivery, and the skill re-renders from your feedback until you approve both.
 - `shorts/<n>-<slug>/out/short.mp4` (when you ask, once the video is approved): three vertical Shorts, 30–55 s, in the same look and voice, with burned-in captions.
 - `script.md`, `brief.md`: the script (with every slide cue) and the research behind it, with sources.
 
@@ -52,6 +52,7 @@ For each video, in `videos/<date>-<slug>/`:
 - **Asks before it writes**: every video starts with the same short questions (viewer level, topic, length, language, research; then free or OpenAI, the look from the `styles/` folder with previews, the pace, the voice with samples and animations), and the checker won't pass a script until the answers are saved.
 - **Made for your viewer**: it asks first how technical your viewer is (0–5) and writes to that level: plain words and everyday comparisons for newcomers, the precise vocabulary and a deeper dive for experts. Processes and loops become animated `flow` diagrams that build with the voice.
 - **Optional generated illustrations** with the OpenAI Image API, in your look's style.
+- **Story teller mode**: a generated illustration for every sentence, so the picture follows the voice like a picture book read aloud, with a camera move on each picture and a dissolve between them. Describe your recurring characters once and they look the same in every picture. About 100 pictures for an 8-minute video (billed by OpenAI; the skill gives you the exact count before anything is spent).
 - **A channel kit**: one `channel/` folder with your channel brief, logo, avatar and the description, keywords and upload defaults to paste into YouTube Studio.
 - **Upload-ready metadata**: `youtube.json` with the title, description (chapters included), tags, category and disclosure answers to paste into YouTube Studio, checked against YouTube's limits.
 - **Shorts from every video**: it proposes five moments that stand on their own, you pick three, and each is rewritten as a 30–55 s Short (hook, payoff, a line that loops) and rendered vertically with big captions, ready to link to the long video.

@@ -10,9 +10,11 @@ description: >-
   a proven structure (hook, intro, ideas, mid hook, summary, outro) with
   subscribe asks and an emotional arc the voice acts out (intrigue, suspense,
   surprise) built in, renders slides with an AI voiceover (free Kokoro
-  voice, or an OpenAI voice that acts the script: asked per video), optional animations and illustrated scenes (a mascot, people, robots,
+  voice, or an OpenAI voice that acts the script: asked per video), or a generated illustration for every sentence (Story
+  teller mode), optional animations and illustrated scenes (a mascot, people, robots,
   backgrounds), subtitles and real chapter times, writes titles and the
-  description, and renders two thumbnails for YouTube's Test & compare; once
+  description, and renders two thumbnails for YouTube's Test & compare, shows
+  them and re-renders them from your feedback until you approve them; once
   the video is approved, makes 3 vertical YouTube Shorts from it (re-rendered
   at 1080×1920 in the same look and voice, with burned-in captions). First
   run asks a few questions (channel, topic area, look) and saves them in
@@ -32,6 +34,7 @@ Turns "make a YouTube video about X" (or "…from this CSV") into a finished, up
 | Look               | **asked in §1b**: a preset folder in `styles/` (`clean` with your palette and logo, `paint-explainer`, …) or a new look from an inspiration folder                                                                                                                                 |
 | Pace               | **asked in §1b**: 1–5 (2 = still slides, cuts; 5 = a visual every few seconds, motion, crossfades)                                                                                                                                                                                 |
 | Free or OpenAI     | **asked first in §1b**: free and local (Kokoro voice, vector scenes) or OpenAI (a voice that acts the tones, generated illustrations), or one of the two; `providers.mjs` says whether the key is there; saved as `voice` and `illustrations`                                      |
+| Mode               | **asked in §1b, with free or OpenAI**: `slides` (the default: the key line, lists, diagrams and proof on slides) or `storyteller` (Story teller: a generated illustration for every sentence, about 100–250 pictures for 8–20 min; needs generated illustrations); saved as `mode` |
 | Voice              | **asked in §1b**, with samples in the video's language: free Kokoro `af_heart` · `af_bella` · `am_michael` (Spanish: `ef_dora` · `em_alex`), or OpenAI `openai:coral` · `openai:sage` · `openai:onyx` (any language) when §1b's first answer includes the OpenAI voice; speed 0.92 |
 | Extras             | **asked in §1b**: animations "when suitable" (recommended) or still slides                                                                                                                                                                                                         |
 | Pictures           | `scene` slides (vector: the mascot, person, robot, 8 backgrounds + 3 layered worlds, props) in every look; free, no network; camera, particles and map marks with animations on                                                                                                    |
@@ -63,14 +66,14 @@ Read before writing:
 - [ ] 0. First run only: setup (config + channel kit + dependencies)
 - [ ] 1. Read the channel brief
 - [ ] 1a. Ask the viewer's level (0–5) first; then topic (typed or from the topic sheet), length (8–20 min, recommended from the level), language (English / Spanish), and whether to research first
-- [ ] 1b. Setup: ask free or OpenAI → voice samples → ask look, pace, voice, animations → style.json (+ moodboard for the story look)
+- [ ] 1b. Setup: ask free or OpenAI + mode (slides or Story teller) → voice samples → ask look, pace (not in Story teller), voice, animations → style.json (+ moodboard for the story look)
 - [ ] 2. Topic: the picked row or typed topic; or profile a CSV, cluster, score, let the user pick
 - [ ] 2b. Research (if chosen): sources → research.md with a numbered source list → the user approves
 - [ ] 3. Brief: promise, viewer, ideas for the length with proof, facts to verify
 - [ ] 4. Script with SLIDE cues → emotion pass (TONE cues) → script-stats until it passes
 - [ ] 5. Video: (pictures) → slides → look → (preview the motion) → voice + MP4 → verify
 - [ ] 6. Packaging: titles, description, real chapters, tags, pinned comment → youtube.md + youtube.json → check
-- [ ] 7. Thumbnails A/B → render → look → fix
+- [ ] 7. Thumbnails A/B → render → look → fix → show the user → feedback → re-render, until both are approved
 - [ ] 8. Deliver
 - [ ] 9. Shorts (once the long video is approved): 5 candidate moments → the user picks 3 → a mini-script each → script-stats → slides → render → youtube.json → check
 ```
@@ -142,7 +145,7 @@ Save it as `"level"` in `$W/style.json`. Then **one `AskUserQuestion` with four 
 
 Keep the answers for §1b: the level goes into `$W/style.json` as `"level"`, the length into `$W/style.json` as `"minutes"` (the config's `video.minutes` is the default to recommend), the research answer as `"research": true | false` and the language as `"language": "en" | "es"`, the topic into the folder's slug.
 
-### 1b. Setup: free or OpenAI, look, pace, voice
+### 1b. Setup: free or OpenAI, mode, look, pace, voice
 
 Make the folder first (`mkdir -p <workspace>/$(date +%F)-<slug>/thumbs`; a working slug is fine, rename later).
 
@@ -163,6 +166,13 @@ Options (when the config has no default: `OpenAI voice + illustrations` first an
 
 In each description, say what it changes for the look the topic suggests (`sketch-explainer` needs illustrations to look like a sketch; `illustrated-explainer` gets its richest shots from them; `clean` and `editorial` need them least). **If a key is found but a check fails** (✗), tell the user in one or two lines what `providers.mjs` said and what to fix (a rejected key, a model the key can't use, an organisation to verify, no credit, a blocked host), mark the OpenAI options in the question as "won't work until that's fixed", and recommend `Free · local`; re-run the check after they fix it. Without the key, still offer the OpenAI options, with "needs `OPENAI_API_KEY` in the environment or the project's `.env`" in their descriptions; if one is picked, ask them to add the key to the project's `.env` (from `references/env.example`; they paste it into the file, never into the chat), re-run `providers.mjs --check`, and fall back to free if it can't be added or doesn't pass. If `providers.mjs` finds an ElevenLabs key, say in the question that "Other" takes an ElevenLabs voice. Save the answer as `"illustrations": true | false` (and the voice, below).
 
+**Mode, in the same `AskUserQuestion`** (a second question next to free or OpenAI): "Slides or Story teller?". Skip it when the request already says ("story teller", "storyteller", "an illustration per sentence", "como un cuento", "una ilustración por frase") and say which you took. Options, the config's `video.mode` first when it has one, else `Slides` first:
+
+- `Slides (recommended)`: the key line, lists, diagrams, numbers and real proof on slides, with scenes and a few illustrations; the pace sets how often the picture changes.
+- `Story teller`: **a generated illustration for every sentence**, so the picture follows the voice like a picture book read aloud: a camera move on each picture and a dissolve between them (video playbook › Story teller mode). About one picture per sentence: roughly 100 for 8 minutes, 150 for 12, 250 for 20, each billed by OpenAI (medium quality by default; `gen-images.mjs --dry-run` gives the exact count before anything is billed), generated 4 at a time. Suits stories, history, a case told as a narrative, a "how it happened"; less suited to data-heavy or step-by-step tutorials.
+
+Story teller needs generated illustrations: without a working OpenAI key, mark it "won't work until the key works" (or the user brings their own pictures as `src`). If they pick Story teller with `Free · local` or `OpenAI voice only`, switch the pictures on (`Illustrations only` or `OpenAI voice + illustrations`) and say so in one line. Save `"mode": "storyteller"` (with `"illustrations": true`) or `"mode": "slides"`.
+
 Then generate the voice samples for that answer (cached across videos; the first Kokoro run sets it up, ~120 MB):
 
 ```bash
@@ -182,7 +192,7 @@ Then **one `AskUserQuestion` with four questions**. Skip any the request already
 
    For a new look, ask for the folder in one line if it isn't given, then make it a preset (`styles/README.md` › Adding a preset) so the next video can reuse it.
 
-2. **Pace**: options `2 · Calm`, `3 · Balanced`, `4 · Lively`, `5 · Fast` ("Other" takes 1); **recommend the default pace of the look you recommend** in question 1 (`presets.mjs` prints it: 4 for `illustrated-explainer`, 3 for most; 3 when a look has none), listed first, and say in its description that it's that look's own pace. If the user picks another look whose default differs, and didn't choose a pace on purpose, use that look's default and say so in one line. Give each option a `preview` that shows how one idea with 3 points turns into slides at that pace (see the pace table in `video-playbook.md`). Example for 4:
+2. **Pace** (skip it in Story teller mode: the sentence sets the cut, so save `"pace": 3` and say so in one line): options `2 · Calm`, `3 · Balanced`, `4 · Lively`, `5 · Fast` ("Other" takes 1); **recommend the default pace of the look you recommend** in question 1 (`presets.mjs` prints it: 4 for `illustrated-explainer`, 3 for most; 3 when a look has none), listed first, and say in its description that it's that look's own pace. If the user picks another look whose default differs, and didn't choose a pace on purpose, use that look's default and say so in one line. Give each option a `preview` that shows how one idea with 3 points turns into slides at that pace (see the pace table in `video-playbook.md`). Example for 4:
    ```
    [Chapter card] → [1 · One question per article]
    → [2 · Real user words] → [3 · Ship small]
@@ -224,6 +234,8 @@ Write `$W/style.json` with the preset and the answers (anything else comes from 
   "illustrations": false
 }
 ```
+
+In Story teller mode, also recommend looks whose pictures carry the story (`presets.mjs` says which ones illustrations "carry", e.g. `illustrated-explainer`, `sketch-explainer`): the look's `imageStyle` is what keeps a hundred pictures in one style. Add `"mode": "storyteller"` and `"illustrations": true` to `style.json`, and `"characters"` once the script names recurring people or places (§4).
 
 Read the preset's `style.md` before writing the script: a story preset changes how the script is told, not only how it looks.
 
@@ -353,6 +365,8 @@ It prints each section's words, demo time, start time and length, writes `telepr
 
 It also prints the tones and warns when the hook, an idea or the mid hook has no emotional turn, when suspense never pays off, and when the tones are too few (a flat read) or too many (over-acting); fix those like any other warning.
 
+**Story teller mode** (`"mode": "storyteller"` in `style.json`): instead of the pace's cue density, follow the video playbook's "Story teller mode" and the script playbook's "Writing for Story teller": every sentence on its own spoken line, under its own `illustration` cue whose `prompt` draws what that sentence says (a concrete shot; a metaphor for an abstract line; never words); recurring people, places and objects described once in `style.json` `"characters"` and named `{Name}` in the prompts so they look the same in every picture; shots varied like a storyboard (wide, close, back out); other layouts only for real proof (`number`, `table`, `doc`, `chat`), about one sentence in five at most. `script-stats.mjs` fails a line with two sentences, a picture with two lines, a sentence over about 12 s and an undescribed `{Name}`, and prints how many pictures the video needs.
+
 Then reread the script once as the viewer: does the first sentence pay off the title/thumbnail? Does it make you want to hear the next line? Is every open loop closed? Is anything in the "avoid" list? Is any model output, screen or number invented instead of taken from a real artifact?
 
 ### 5. Video
@@ -364,7 +378,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/gen-images.mjs $W --dry-run   # what would be g
 node ${CLAUDE_SKILL_DIR}/scripts/gen-images.mjs $W             # generate the missing ones (billed)
 ```
 
-Tell the user how many pictures it will generate before the real run (a `layers` illustration counts one per layer; cut-out layers come back on a transparent background). They land in `$W/assets/gen/` (named by a hash of prompt + look, so the renderer finds them and an edited prompt makes a new one). `Read` each: right subject, no text, no fake screens, fits the look. Regenerate one with `--force --only <hash>`. If the key or the network is missing, say so and swap those cues for `scene` slides rather than waiting.
+Tell the user how many pictures it will generate before the real run (a `layers` illustration counts one per layer; cut-out layers come back on a transparent background). They land in `$W/assets/gen/` (named by a hash of prompt + look, so the renderer finds them and an edited prompt makes a new one). `Read` each: right subject, no text, no fake screens, fits the look. Regenerate one with `--force --only <hash>`. If the key or the network is missing, say so and swap those cues for `scene` slides rather than waiting. **In Story teller mode** that's 100–250 pictures: show the user the count and the 3 sample prompts from `--dry-run` and wait for their go-ahead before the real run. It generates 4 at a time (`--jobs`), at `medium` quality unless `style.json` `"imageQuality"` says otherwise; a re-run only generates what's missing, so an interrupted run resumes. Check them on the contact sheet (`render-video.mjs $W --slides` → `video/sheet.png`) rather than one by one: the same characters from picture to picture, the right subject, no text; `Read` the odd ones at full size and regenerate them with `--force --only <hash>`. To change how a character looks everywhere, edit its `characters` description (every picture that names it is generated again: say how many first).
 
 ```bash
 node ${CLAUDE_SKILL_DIR}/scripts/render-video.mjs $W --slides   # slides + sheet, ~10 s
@@ -444,6 +458,19 @@ node ${CLAUDE_SKILL_DIR}/scripts/render-thumbnails.mjs $W/thumbs/spec.json
 
 `Read` `compare.png`, then each thumbnail. Check: readable at 168 px, one focal point, highlight on the right word, nothing in the bottom-right corner, A and B really differ by the hypothesis, each picture says what its words say (a `fear` headline isn't over a cheerful scene). Fix the spec and re-render until both are clean.
 
+#### Review with the user (repeat until approved)
+
+The user approves the thumbnails before §8. Once your own check passes:
+
+1. **Save the round**: copy `spec.json`, `thumb-*.png` and `compare.png` into `$W/thumbs/rounds/r<n>/` (n = 1, 2, …), so an earlier version can come back ("go back to round 2's B").
+2. **Show it**: send `compare.png`, then `thumb-A.png` and `thumb-B.png`, (their paths; in a cloud or temporary environment, send the files, e.g. with `SendUserFile`). Add the hypothesis in one line, and one line per variant: its angle, headline, layout and picture.
+3. **Ask**: one `AskUserQuestion` with one question per variant (A, B and C if there is one), e.g. "Thumbnail A (desire, 'WRITES FOR YOU'): approve or change?". Options: `Approve`, `Change the words`, `Change the picture or layout`, `Try another angle`. Say in the question text that "Other" or notes take specific feedback ("bigger mascot", "highlight FREE instead", "darker"). After round 1, put a variant that's already approved first, as `Keep as approved`.
+4. **Apply** the feedback to `spec.json` for the variants that need it only, and leave the approved ones as they are, so the test stays fair. Turn vague feedback into concrete edits (playbook › Review rounds). Re-render (a full run, so `compare.png` shows the new pair) and repeat your own check. If a change moves a variant to another angle, rewrite `hypothesis` and say so. If the feedback breaks a playbook rule (a 7-word headline, text in the bottom-right corner), do it if they insist, but first say once what the rule protects. Exit code 2 still means shorten, not shrink.
+5. **Log it**: append to `$W/thumbs/feedback.md` a line per variant per round: round · variant · the feedback · what changed. Read the last videos' `feedback.md` before drafting a new spec. It shows what this channel's owner likes.
+6. **Repeat** from 1 until every variant is approved. If a variant hasn't been approved after 3 rounds, offer 3 fresh alternatives for it, each with a different angle or layout (extra variants `C`, `D` and `E` in the same spec, shown in one `compare.png`). The one they pick takes that variant's letter, and you delete the others from the spec.
+
+Then re-run `youtube-meta.mjs` (the final files are ≤ 2 MB) and go to §8.
+
 ### 8. Deliver
 
 Give the user the paths of every deliverable (the MP4 first). In a cloud or temporary environment, send the files (e.g. `SendUserFile`, MP4 first) and say they need saving: the workspace isn't kept.
@@ -452,7 +479,7 @@ Reply with, in this order:
 
 1. Topic and why, in one line (with the evidence).
 2. The video: length, size, voice, and the chapter list with real times.
-3. The files: `out/video.mp4`, `out/video.srt`, `youtube.md`, `youtube.json`, `thumbs/thumb-A.png`, `thumbs/thumb-B.png`, `thumbs/compare.png`, plus `script.md` and `brief.md`.
+3. The files: `out/video.mp4`, `out/video.srt`, `youtube.md`, `youtube.json`, `thumbs/thumb-A.png`, `thumbs/thumb-B.png`, `thumbs/compare.png` (the approved round; don't ask again), `thumbs/feedback.md`, plus `script.md` and `brief.md`.
 4. How to publish:
    - Upload the MP4, paste the title, description, tags, category and the made-for-kids / altered-content answers from `youtube.json` (`youtube.md` is the readable version), and upload `video.srt` as subtitles.
    - **End screen** (YouTube doesn't add it for you): Studio › Editor › End screen › template "1 video, 1 subscribe". Drag the elements onto the soft shapes on the end slide (the time the renderer printed, to the end). After the first video, "Import from video" copies it.
@@ -494,6 +521,7 @@ Every script reads its variables through `scripts/env.mjs`, always in this order
 
 - **Social post** about the video's main lesson: 3 hooks + a 120-word post for LinkedIn or X, with the video link.
 - **Third thumbnail**: Test & compare takes up to three; add `"C"` to `variants` and re-render.
+- **Polish the thumbnails of an existing video** (or iterate on the Test & compare winner): from that `$W`, run §7's review loop from its current `thumbs/spec.json`. The next round number follows `thumbs/rounds/`.
 - **Version in the other language**: translate script, packaging and thumbnail text into a sibling `$W` folder (`…-<slug>-es` or `…-<slug>-en`), copy `style.json` with `language` switched and a voice of that language, and render.
 - **More or less emotion**: `"expressive"` in `style.json` (0 = one flat tone, 1 = default, 1.5 = more dramatic pauses and speed changes) and re-render (only the toned lines are re-spoken); or move `> TONE` cues in the script. A paid voice (`openai:…`) acts the tones, not only times them.
 - **More or fewer animations**: `"animate": "off"` in `style.json` for still slides, or `"animate": false` on a single cue to keep that slide still. `"camera": "off"` keeps the entrances but stops the camera moves (faster render); `"camera": "auto"` adds them to any look.
@@ -513,7 +541,8 @@ Every script reads its variables through `scripts/env.mjs`, always in this order
 - `scripts/render-video.mjs` + `assets/slide.html` + `scripts/tts.py`: slides, Kokoro voice, MP4 (motion + crossfades at pace ≥ 3, animated slides filmed frame by frame), subtitles, real chapters, `out/timeline.json`; `--preview` for single slides; a Short (`"format": "short"` or `--vertical`) at 1080×1920 with burned-in captions.
 - `assets/scenes.js`: the `scene` layout's backgrounds (including the layered worlds `aurora`, `sea`, `dawn`), characters (ghost, person, robot), poses and props, drawn in the theme's colours.
 - `assets/slide.html`: every layout, plus the illustrated-world engine (camera with parallax, `fx` particles, `marks`) and the animations.
-- `scripts/gen-images.mjs`: generated illustrations and scene backgrounds (OpenAI Image API; model = config `models.image`), in the look's image style.
+- `scripts/gen-images.mjs`: generated illustrations and scene backgrounds (OpenAI Image API; model = config `models.image`), in the look's image style. Generates 4 at a time (`--jobs`); a `{Name}` in a prompt takes its description from `style.json` `"characters"`.
+- `scripts/storyteller.mjs`: Story teller mode (a picture per sentence): sentence splitting, the one-sentence-per-picture checks, `{Name}` characters, the camera moves; shared by `script-stats.mjs`, `render-video.mjs`, `gen-images.mjs` and `style.mjs`.
 - `scripts/tts-setup.mjs` + `scripts/voice-samples.mjs`: Kokoro setup (cached in `<workspace>/.tts/`), and the samples for the voice question.
 - `scripts/moodboard.mjs`: palette and font files from an inspiration folder (story look).
 - `scripts/render-thumbnails.mjs` + `assets/thumbnail.html`: A/B thumbnails and the compare sheet, in the video's look.

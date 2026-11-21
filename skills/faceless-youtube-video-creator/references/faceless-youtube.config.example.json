@@ -24,7 +24,8 @@
     "pace": 3,
     "voice": "af_heart",
     "animate": "auto",
-    "illustrations": false
+    "illustrations": false,
+    "mode": "slides"
   },
   "paths": {
     "workspace": "./videos",

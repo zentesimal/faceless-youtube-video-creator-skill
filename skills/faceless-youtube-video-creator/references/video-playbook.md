@@ -68,7 +68,7 @@ Chosen in §1b, stored as `pace` in `style.json` (`--pace` overrides). It sets h
 | 4    | lively                 | 7             | a cue per line; lists as `reveal:"one"`; a dark `word` at each catch                                 | 0.2 s crossfade                   | slow push-in on every slide                                    |
 | 5    | fast                   | 5             | a visual per sentence; a `word` or `number` pattern break every ~30 s; artifacts split across slides | 0.15 s crossfades, cuts on `word` | push-in, punch-in on `word`                                    |
 
-A slide over the max is a warning; at pace 3+ over 1.3× the max exits 2 (split it). Higher pace never means more words: the script is the same length; it's cut into more pictures. The subscribe and end slides are exempt.
+In Story teller mode the sentence sets the cut instead (Story teller mode, below). A slide over the max is a warning; at pace 3+ over 1.3× the max exits 2 (split it). Higher pace never means more words: the script is the same length; it's cut into more pictures. The subscribe and end slides are exempt.
 
 Example, one idea with three points, ~25 s of voice:
 
@@ -100,7 +100,42 @@ Two kinds, both **illustrations, never proof**: they show a situation or a metap
 > SLIDE {"layout":"scene","bg":"office","cast":[{"who":"person","pose":"shrug","say":"Why did it do that?"},"robot:think"],"props":["server"]}
 ```
 
-**`illustration`** (only when the user chose generated illustrations in §1b): `scripts/gen-images.mjs` sends the cue's `prompt` with the look's image style (`style.mjs` › `imageStyle`; the config's `look.imageStyle`, a preset or `$W/style.json` can set its own) to the OpenAI Image API (model = the config's `models.image`, 1536×864; key = `OPENAI_API_KEY`). Write the prompt as a scene ("the ghost mascot sorting a mountain of support tickets into three neat piles"), never with words to render: the slide adds the text. Until the picture exists, `--slides` shows a placeholder and the full render exits 2. Use it for the two or three moments that deserve a richer picture (the hook, the big turn), not as wallpaper.
+**`illustration`** (only when the user chose generated illustrations in §1b): `scripts/gen-images.mjs` sends the cue's `prompt` with the look's image style (`style.mjs` › `imageStyle`; the config's `look.imageStyle`, a preset or `$W/style.json` can set its own) to the OpenAI Image API (model = the config's `models.image`, 1536×864; key = `OPENAI_API_KEY`). Write the prompt as a scene ("the ghost mascot sorting a mountain of support tickets into three neat piles"), never with words to render: the slide adds the text. Until the picture exists, `--slides` shows a placeholder and the full render exits 2. Use it for the two or three moments that deserve a richer picture (the hook, the big turn), not as wallpaper; in Story teller mode, every sentence gets one (below).
+
+## Story teller mode
+
+`"mode": "storyteller"` in `style.json` (asked in SKILL.md §1b; any look): **a generated illustration for every sentence**, so the picture follows the voice like a picture book read aloud. It needs generated illustrations (`"illustrations": true`), or your own pictures as `src`. Not to be confused with the `story` look (no branding), which is about colours and chrome.
+
+```markdown
+## [HOOK]
+
+> SLIDE {"layout":"illustration","prompt":"{Maya} at her kitchen table at 2 a.m., lit only by her laptop, a cold cup of coffee beside her"}
+
+At two in the morning, Maya was still answering tickets.
+
+> SLIDE {"layout":"illustration","prompt":"close-up of a tall stack of paper envelopes in the laptop's glow, each stamped with the same question mark"}
+
+Forty-three of them, all asking the same question.
+
+> BEAT
+```
+
+- **One sentence, one line, one picture.** Every spoken line is a single sentence, and every line has its own `illustration` cue right above it. `script-stats.mjs` and the renderer stop on a line with two sentences or a picture with two lines (`storyteller.mjs` splits sentences on `.` `?` `!` `…` before a capital, skipping abbreviations and initials). The subscribe and end slides are exempt.
+- **The prompt draws the sentence**: what the voice says, as a concrete shot (who, doing what, where, the light, the mood). An abstract sentence gets its metaphor ("trust breaks quietly" → a glass bridge with one hairline crack). Never words in the picture: the voice says them. How to write for it: script playbook › Writing for Story teller.
+- **Recurring characters.** Describe each recurring person, animal, place or object once in `style.json`, and name it in a prompt as `{Maya}` or `{the office}`:
+
+  ```json
+  "characters": {
+    "Maya": "a support agent in her 30s with short red hair, round glasses and a green denim jacket",
+    "the office": "a small open-plan office with tall windows, plants and yellow desk lamps"
+  }
+  ```
+
+  Every prompt that names one gets its description, plus an instruction to draw it the same way each time; the look's `imageStyle` keeps the drawing style constant. An unknown `{Name}` stops the checker and the generator. Editing a description regenerates every picture that names it (the file name is a hash of the full prompt). The vector `cast` (mascot, person, robot) also works on an illustration: drawn by the renderer, identical in every shot.
+
+- **Proof stays real.** A real number, table, doc or chat still goes on its own slide (`number`, `table`, `doc`, `chat`), one sentence under it like any other. Keep those to about one sentence in five (the checker warns past that).
+- **Timing.** The sentence sets the cut, not the pace: a picture holds as long as its sentence, up to 12 s (the render stops past about 15 s: split the sentence, each half with its own picture). At any pace the pictures dissolve into each other (0.3 s) and still pictures push in slowly. With animations on, the camera is `auto` by default and each picture takes the next move in turn (push, pan right, drift, pan left, pull, rise); a cue's own `camera` wins, and `layers`, `cast`, `fx` and `marks` work as usual.
+- **How many pictures.** About one per sentence: roughly 100 for an 8-minute video, 150 for 12 minutes, 250 for 20. `gen-images.mjs` generates 4 at a time (`--jobs`), at `medium` quality unless `"imageQuality"` (or `--quality`) says otherwise; `--dry-run` gives the exact count before anything is billed. Identical prompts are generated once, so returning to the same establishing shot costs nothing.
 
 ## Diagrams (`flow`)
 

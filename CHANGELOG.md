@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 (2026-11-20)
+
+Story teller mode.
+
+- **Story teller mode** (`"mode": "storyteller"` in `style.json`, asked next to free or OpenAI): a generated illustration for every sentence. Each sentence gets its own spoken line and its own `illustration` cue; `script-stats.mjs` and the renderer check one sentence per picture and at most ~12 s per picture. The sentence sets the cut at any pace: pictures dissolve into each other, still pictures push in, and with animations on each picture takes the next camera move in turn (push, pan, drift, pull, rise). New `references/video-playbook.md` › Story teller mode and `script-playbook.md` › Writing for Story teller.
+- **Recurring characters**: describe a person, place or object once in `style.json` `"characters"` and name it as `{Maya}` in any prompt; every picture that names it gets the same description, so it looks the same from picture to picture. An undescribed `{Name}` is caught before anything is billed.
+- `gen-images.mjs` generates 4 pictures at a time (`--jobs`), defaults to `medium` quality in Story teller mode (`"imageQuality"` or `--quality` to change it), lists long batches compactly in `--dry-run` (`--full` for every prompt), stops early when the key, credit or network fails for every picture, and no longer prints the request (with the API key) when a request fails.
+
+## 0.2.1 (2026-11-20)
+
+- **Thumbnail review loop**: you see thumbnails A and B before delivery, approve each one or give feedback on it (words, picture or layout, angle, or free text), and the skill re-renders until both are approved. An approved variant stays as it is, so the A/B test stays fair. After 3 rounds on one variant it offers 3 fresh alternatives. Every round is kept in `thumbs/rounds/r<n>/` and the feedback is logged in `thumbs/feedback.md`, which the next video's thumbnails read. Also works on an existing video's thumbnails ("polish the thumbnails").
+
 ## 0.2.0 (2026-11-19)
 
 Shorts from your long videos.

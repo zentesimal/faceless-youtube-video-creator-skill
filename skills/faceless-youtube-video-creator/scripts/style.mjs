@@ -7,7 +7,10 @@
 //     "illustrations": false, "style": "brand" | "story", "inspiration": "/abs/folder",
 //     "theme": { "ground", "main", "second", "accent": "#hex", "display", "body", "fontFiles": {…},
 //                "texture": "dots" | "grain" | "paint" | "none", "paper": "#hex" }, "imageStyle": "…", "gap", "sectionGap", "maxPause",
-//     "camera": "auto" | "off" | a move name (camera with parallax on scene and illustration slides; render-video.mjs) }
+//     "camera": "auto" | "off" | a move name (camera with parallax on scene and illustration slides; render-video.mjs),
+//     "mode": "slides" | "storyteller" (a generated illustration per sentence; storyteller.mjs),
+//     "characters": { "Maya": "…" } (recurring people, places or objects a prompt names as {Maya}),
+//     "imageQuality": "low" | "medium" | "high" (gen-images.mjs; default high, medium in storyteller mode) }
 //   theme "outline": px (the characters' line width; 0 = flat) and theme "texture": "soft" (clean vignette).
 // Merge order: defaults ← preset ← config "video" ← $W/style.json ← CLI flags.
 // `brand` = the channel's own palette, fonts, logo and wordmark (from the config). `story` = no branding.
@@ -16,6 +19,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, extname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { env } from './env.mjs'
+import { CONTINUITY, expandCharacters } from './storyteller.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const skill = resolve(here, '..')
@@ -42,7 +46,14 @@ export const DEFAULTS = {
     mascot: 'ghost',
     imageStyle: null
   },
-  video: { minutes: 15, pace: 3, voice: 'af_heart', animate: 'auto', illustrations: false },
+  video: {
+    minutes: 15,
+    pace: 3,
+    voice: 'af_heart',
+    animate: 'auto',
+    illustrations: false,
+    mode: 'slides'
+  },
   paths: {
     workspace: './videos',
     topics: './youtube-topics.csv',
@@ -246,9 +257,12 @@ const FRAMING = {
     'This is one cut-out layer of a layered 16:9 shot for an animated video: draw ONLY the described element(s), fully isolated on a transparent background (no sky, no backdrop, no ground plane beyond what the element stands on, no frame, no vignette, no drop-shadow box). Keep the element at the size and position it has in the final 16:9 frame (e.g. a foreground rock in the lower-left corner), with clean edges.'
 }
 export function imagePrompt(prompt, style, kind = 'illustration') {
+  // {Name} = a recurring character, place or object described once in style.json "characters" (storyteller.mjs)
+  const { text, used } = expandCharacters(prompt, style.characters)
   return [
     imageStyle(style),
-    'Scene: ' + prompt.trim(),
+    'Scene: ' + text.trim(),
+    ...(used ? [CONTINUITY] : []),
     FRAMING[kind] || FRAMING.illustration,
     NO_TEXT
   ].join('\n\n')

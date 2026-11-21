@@ -2,6 +2,23 @@
 
 Every video ships with **two thumbnails, A and B**, for YouTube Studio's _Test & compare_ (it splits impressions between up to three thumbnails and picks the one with the most watch time). Rendered locally by `scripts/render-thumbnails.mjs` from `thumbs/spec.json`.
 
+## Review rounds (polishing with the user)
+
+The user sees A and B before delivery and approves each one or gives feedback on it (SKILL.md › §7 › Review with the user). To turn feedback into spec edits:
+
+| They say…                    | Try                                                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| "doesn't pop" / "too flat"   | `light` theme against the dark feed, highlight on a shorter word, a bigger character (fewer props)  |
+| "too busy" / "too much"      | drop the `sticker`, cut props or cast to one, fewer headline words                                  |
+| "I don't get it" / "unclear" | name the thing plainly (`explain` angle), or a picture that shows the topic literally               |
+| "boring" / "generic"         | a sharper angle (`fear`, `contrarian`, `curiosity`) or the `proof` layout with the real artifact    |
+| "too clickbait"              | `explain` or `proof`; the headline only promises what the video delivers                            |
+| "the words are wrong"        | redraft 3 headlines from the same angle, pick the strongest; keep the highlight on the tension word |
+
+- Change one thing per variant per round when you can, so it's clear what made it better.
+- Leave an approved variant as it is. Change only the one under review, so A and B still test one hypothesis.
+- Every round is kept in `thumbs/rounds/r<n>/`. Every round's feedback goes in `thumbs/feedback.md`. Read past videos' logs before a new spec.
+
 ## Pick the angles first (wording + image strategy)
 
 Before choosing layouts, decide **why** someone would click. Each variant takes **one angle** from the list below, and A and B take **different angles**: that's the hypothesis. The angle sets both the words and the picture, so they say the same thing.

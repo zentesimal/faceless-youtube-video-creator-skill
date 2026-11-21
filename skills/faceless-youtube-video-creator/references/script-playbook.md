@@ -165,6 +165,17 @@ When `style.json` has `"style": "story"`, the script tells a story instead of wa
 - **Slides**: fewer `points`, more `statement`, `word` and `quote`. Proof stays real: a `doc`, `table` or `chat` with the actual artifact, never an invented one. Scenes are told, not illustrated with fake screenshots.
 - **Honesty**: a story built from real events uses the real details (anonymised: no customer names). A composite or hypothetical scene says so in the voiceover ("picture a team that…").
 
+## Writing for Story teller (`"mode": "storyteller"`)
+
+A Story teller video draws **one picture per sentence** (video playbook › Story teller mode). The structure, markers, beats and tones don't change; the sentences do, because each one has to be seen:
+
+- **Sentences you can picture.** A subject doing something somewhere: "The bot answered in under a second" draws; "this has implications for efficiency" doesn't, so say what the viewer would see ("Maya closed eleven tickets before her coffee went cold"). An abstract idea gets a concrete metaphor, said and drawn.
+- **One sentence per line, 6–20 words** (about 2–7 s of voice). Vary the length: a short one lands a beat ("It wasn't."), a longer one carries a scene. Past about 30 words the picture stays up too long: split it.
+- **One thread.** Keep the same people and places through an idea, named in prompts as `{Name}` and described once in `style.json` `"characters"`: the pictures then read as one story, not a slideshow of strangers. No real people, brands or logos in a prompt.
+- **Shots like a storyboard.** Open a scene wide (where we are), go closer for the detail and the feeling (a face, a hand on the mouse, the glow of a screen), pull back for the turn. Don't repeat the same framing three pictures in a row, and don't redraw the previous picture with one change unless that change is the point.
+- **Prompts in English** (the house image style is English), whatever the video's language; the voice and any slide text stay in the video's language.
+- **Proof stays proof.** Numbers, real outputs and documents still go on `number`, `table`, `doc` or `chat` slides; a picture illustrates, it never proves.
+
 ## `script.md` format (what the checker reads)
 
 ```markdown
