@@ -57,7 +57,7 @@ async function elevenLabsVoices() {
   const key = apiKey('elevenlabs', '.')
   if (!key) {
     console.error(
-      'voice-samples: no ELEVENLABS_API_KEY (environment or the project\'s .env): add it, or pick a free or OpenAI voice'
+      "voice-samples: no ELEVENLABS_API_KEY (environment or the project's .env): add it, or pick a free or OpenAI voice"
     )
     process.exit(2)
   }
@@ -111,7 +111,9 @@ if (provider === 'elevenlabs' && args.includes('--list')) {
   process.exit(0)
 }
 if (provider === 'elevenlabs' && !library.length) {
-  console.error('voice-samples: the ElevenLabs library is empty: add a voice in ElevenLabs › Voices first')
+  console.error(
+    'voice-samples: the ElevenLabs library is empty: add a voice in ElevenLabs › Voices first'
+  )
   process.exit(2)
 }
 CANDIDATES.elevenlabs = pickNarrators(library).map((v) => [v.voice, v.note])

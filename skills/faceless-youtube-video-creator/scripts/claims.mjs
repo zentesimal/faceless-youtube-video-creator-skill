@@ -7,12 +7,14 @@
 // and where the video proves it, so the headline can be blunt without over-promising.
 
 // a headline that opens like a topic label or a question, not a statement (English and Spanish)
-const LABEL = /^(how|why|what|which|when|is|are|can|does|do|the truth|everything|all about|guide|tutorial|intro|c[oó]mo|por qu[eé]|qu[eé]|cu[aá]l|cu[aá]ndo|todo sobre|gu[ií]a|la verdad)(?![\w'’])/i
+const LABEL =
+  /^(how|why|what|which|when|is|are|can|does|do|the truth|everything|all about|guide|tutorial|intro|c[oó]mo|por qu[eé]|qu[eé]|cu[aá]l|cu[aá]ndo|todo sobre|gu[ií]a|la verdad)(?![\w'’])/i
 // hype that claims nothing: the viewer can't tell what the video proves
 const VAGUE =
   /\b(this|these|that|everything|game[- ]?changer|insane|crazy|secret|secrets|shocking|unbelievable|mind[- ]?blowing|you won'?t believe|must[- ]?know|watch|wow|esto|esta|estos|todo|incre[ií]ble|brutal|secreto|secretos|alucinante|impactante|nadie te cuenta)\b/i
 // something a viewer can check: a number, a comparison, a negation, a named result
-const SPECIFIC = /[\d×%=→<>]|\b(no|not|never|can'?t|won'?t|don'?t|doesn'?t|isn'?t|stop|beats?|vs|nunca|deja|gana|sin)\b/i
+const SPECIFIC =
+  /[\d×%=→<>]|\b(no|not|never|can'?t|won'?t|don'?t|doesn'?t|isn'?t|stop|beats?|vs|nunca|deja|gana|sin)\b/i
 
 /**
  * Warnings for one variant's headline (`v.text`) and its `claim`. `angle` softens the question rule: a `curiosity`
@@ -44,7 +46,13 @@ export function claimWarnings(v = {}) {
     out.push(
       `"${vague[0]}" is hype, not a claim: name the result, the number or the mistake it stands for`
     )
-  if (!question && !vague && v.angle !== 'proof' && !SPECIFIC.test(text) && text.split(/\s+/).length <= 2)
+  if (
+    !question &&
+    !vague &&
+    v.angle !== 'proof' &&
+    !SPECIFIC.test(text) &&
+    text.split(/\s+/).length <= 2
+  )
     out.push(
       `"${text}" names a thing without saying anything about it: add the verb, the number or the result (playbook › Say the claim)`
     )
