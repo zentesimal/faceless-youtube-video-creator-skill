@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 (2026-11-22)
+
+ElevenLabs voices as a first-class option, and thumbnails that state a direct claim.
+
+- **ElevenLabs voices**: when `ELEVENLABS_API_KEY` is set (and `providers.mjs --check` passes), the first setup question offers `ElevenLabs voice + illustrations` and `ElevenLabs voice only` next to the OpenAI and free options. `voice-samples.mjs --provider elevenlabs` picks 3 narrators from your own ElevenLabs library (narration or storytelling voices that speak the video's language first, a female and a male) and samples them; `--list` prints the whole library for any other voice or a clone. The default model is now `eleven_v4` (config `models.elevenlabs`, or `voiceModel` in `style.json`), which acts each `> TONE` line with an audio tag (`[suspenseful]`, `[surprised]`…); tags are only sent to v3 and later, so `eleven_multilingual_v2` still works without them.
+- **Direct-claim thumbnails**: every thumbnail and Short cover headline now states the video's claim, flat and specific ("IT CAN'T COUNT", "LONG PROMPTS FAIL"), instead of a topic label ("HOW LLMS WORK"), a hype teaser ("THIS CHANGES EVERYTHING") or a question (only a `curiosity` variant may ask). Each variant carries a `claim` field: the full sentence the headline asserts and where the video proves it. New `scripts/claims.mjs`; `render-thumbnails.mjs` warns on a missing claim, a question outside `curiosity`, a topic label, a hype word or a bare noun. New `references/thumbnail-playbook.md` › Say the claim; the angle formulas and examples are rewritten as claims.
+
 ## 0.4.0 (2026-11-21)
 
 Covers for Shorts, and a developer audience.

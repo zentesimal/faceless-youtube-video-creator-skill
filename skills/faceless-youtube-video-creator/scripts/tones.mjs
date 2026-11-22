@@ -5,7 +5,8 @@
 // (slower for suspense, quicker for excitement) and how long the pauses inside it may stay (an ellipsis in a
 // suspense line keeps its silence). Kokoro, the free voice, can't act, so for it the timing and the words carry
 // the emotion. Paid voices act it too: OpenAI gets `instructions` for the line (gpt-4o-mini-tts follows them),
-// ElevenLabs gets more expressive voice settings and, on eleven_v3 models, an audio tag in front of the line.
+// ElevenLabs gets more expressive voice settings and, on eleven_v3 and eleven_v4 (the default), an audio tag in front
+// of the line (v4's tags are free text: any short delivery direction in brackets works).
 //
 // `expressive` in style.json scales the timing (0 = tones off, 1 = default, 1.5 = more dramatic).
 

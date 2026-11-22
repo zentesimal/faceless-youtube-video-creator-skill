@@ -33,7 +33,11 @@
     "kit": "./channel",
     "channel": "./channel/channel.md"
   },
-  "models": { "image": "gpt-image-2.5-sunburst", "speech": "gpt-4o-mini-tts" },
+  "models": {
+    "image": "gpt-image-2.5-sunburst",
+    "speech": "gpt-4o-mini-tts",
+    "elevenlabs": "eleven_v4"
+  },
   "credit": true,
   "integrations": { "zentesimal": false }
 }

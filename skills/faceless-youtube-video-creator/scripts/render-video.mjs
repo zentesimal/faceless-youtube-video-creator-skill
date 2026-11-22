@@ -47,7 +47,7 @@ import {
 } from './style.mjs'
 import { NARRATOR, TONE_NAMES, delivery, parseTone } from './tones.mjs'
 import { langFor, providerOf, speak } from './tts-setup.mjs'
-import { defaultSpeed, voiceWpm } from './voices.mjs'
+import { DEFAULT_MODEL, defaultSpeed, readsTags, voiceWpm } from './voices.mjs'
 
 const args = process.argv.slice(2)
 const stop = (m, code = 1) => {
@@ -456,10 +456,14 @@ try {
 const words = (s) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length
 const durations = {}
 // tones: the timing for every voice; the acting for the paid ones (OpenAI follows instructions per line,
-// ElevenLabs gets expressive settings and, on eleven_v3, an audio tag)
+// ElevenLabs gets expressive settings and, on eleven_v3 / eleven_v4 (the default), an audio tag)
 const PROVIDER = providerOf(VOICE)
 // OpenAI voices: style.json voiceModel, else the config's models.speech (providers.mjs --check tests that one)
-const MODEL = style.voiceModel || (PROVIDER === 'openai' ? style.config.models?.speech || '' : '')
+const MODEL =
+  style.voiceModel ||
+  (PROVIDER === 'openai'
+    ? style.config.models?.speech || ''
+    : style.config.models?.[PROVIDER] || DEFAULT_MODEL[PROVIDER] || '')
 const BASE_INSTRUCTIONS =
   style.voiceInstructions ||
   (PROVIDER === 'openai' && EXPRESSIVE > 0 ? NARRATOR[style.language === 'es' ? 'es' : 'en'] : '')
@@ -488,7 +492,7 @@ if (!onlySlides) {
         line.instructions = [BASE_INSTRUCTIONS, d.instructions].filter(Boolean).join(' ')
       if (PROVIDER === 'elevenlabs') {
         line.settings = d.settings
-        if (/^eleven_v3/.test(MODEL)) line.text = `${d.tag} ${k.text}`
+        if (readsTags(MODEL)) line.text = `${d.tag} ${k.text}`
       }
       return line
     })

@@ -9,6 +9,13 @@
 
 export const RATES = { kokoro: 201, openai: 155, elevenlabs: 160 }
 
+/** The speech model a cloud voice uses unless style.json `voiceModel` names one. ElevenLabs: eleven_v4 (Sept 2026),
+ * the most expressive, reads the tones' audio tags; `"voiceModel": "eleven_multilingual_v2"` for the older, cheaper read. */
+export const DEFAULT_MODEL = { elevenlabs: 'eleven_v4' }
+
+/** Whether an ElevenLabs model reads inline audio tags (`[curious] …`): eleven_v3 and later. */
+export const readsTags = (model = '') => /^eleven_v([3-9]|\d\d)/.test(model)
+
 /** `kokoro`, `openai` or `elevenlabs`, from the voice name's prefix. */
 export const providerOf = (voice = '') => (voice.includes(':') ? voice.split(':')[0] : 'kokoro')
 

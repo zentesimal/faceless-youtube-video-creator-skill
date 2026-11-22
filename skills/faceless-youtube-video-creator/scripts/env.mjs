@@ -19,7 +19,7 @@ const CONFIG_FILE = 'faceless-youtube.config.json'
 /** The variables the skill reads, with what each unlocks (documented in ../references/env.example). */
 export const KNOWN = {
   OPENAI_API_KEY: 'OpenAI voices (openai:<voice>) and generated illustrations',
-  ELEVENLABS_API_KEY: 'ElevenLabs voices (elevenlabs:<voice id>)',
+  ELEVENLABS_API_KEY: 'ElevenLabs voices from your library (elevenlabs:<voice id>, model eleven_v4) that act the script tones',
   CHROMIUM_PATH: 'a Chrome or Chromium to render with, when Playwright finds none'
 }
 

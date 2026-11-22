@@ -12,10 +12,12 @@
 //   --pick A                copies cover-A.png to cover.png (the one that ships) and records "picked" in the spec
 //
 // <out> defaults to the spec's folder. Spec fields: ../references/thumbnail-playbook.md.
-// Exit code 2 = a variant overflows or breaks a rule (shorten the copy and re-run).
+// Exit code 2 = a variant overflows or breaks a rule (shorten the copy and re-run). Warnings include the direct-claim
+// check (claims.mjs): a headline that asks, labels the topic or hypes instead of stating the video's claim.
 import { copyFileSync, existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { claimWarnings } from './claims.mjs'
 import { channel, dataUrl, families, fontsCss, launchBrowser, loadStyle, skill } from './style.mjs'
 
 const args = process.argv.slice(2)
@@ -152,7 +154,7 @@ for (const [name, v] of variants) {
       (textSize ? ` at ${textSize}px` : '') +
       ')'
   )
-  for (const w of warnings) console.warn(`  warning [${name}]: ${w}`)
+  for (const w of [...claimWarnings(v), ...warnings]) console.warn(`  warning [${name}]: ${w}`)
   for (const i of issues) console.error(`  PROBLEM [${name}]: ${i}`)
   if (issues.length) failed = true
   rendered.push({ name, file, hypothesis: v.hypothesis })

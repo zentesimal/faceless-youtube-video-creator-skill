@@ -8,8 +8,9 @@ cloud voice when the voice name has a provider prefix:
   --voice af_heart            Kokoro, free and offline (the default)
   --voice openai:coral        OpenAI speech API (OPENAI_API_KEY; --model default gpt-4o-mini-tts; --instructions
                               steer tone and accent)
-  --voice elevenlabs:<id>     ElevenLabs (ELEVENLABS_API_KEY; <id> = a voice id from your ElevenLabs library;
-                              --model default eleven_multilingual_v2)
+  --voice elevenlabs:<id>     ElevenLabs (ELEVENLABS_API_KEY; <id> = a voice id from your ElevenLabs library,
+                              voice-samples.mjs --provider elevenlabs --list prints them; --model default eleven_v4,
+                              which also reads inline audio tags such as [curious])
 
 Cloud takes are billed per request by the provider; the cache below means each line is bought once. --speed is
 Kokoro's own speed, and for cloud voices it's applied afterwards with ffmpeg (atempo), so it works the same.
@@ -135,7 +136,7 @@ def synth_openai(text, voice_id, model, instructions):
 
 def synth_elevenlabs(text, voice_id, model, settings=None):
     rate = 24000
-    body = {"text": text, "model_id": model or "eleven_multilingual_v2"}
+    body = {"text": text, "model_id": model or "eleven_v4"}
     if settings:
         body["voice_settings"] = settings
     data = post(
