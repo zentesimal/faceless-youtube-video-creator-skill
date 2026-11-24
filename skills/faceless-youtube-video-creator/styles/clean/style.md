@@ -17,6 +17,10 @@ Light ground from `look.colors.ground`, `main` for numbers and bold, `second` fo
 
 The script playbook's default: hook, intro with the channel line, ideas as a numbered list (claim, why, proof, catch, bridge), subscribe at the mid hook, summary as a checklist. First person, plain, a bit wry.
 
+## Product screens
+
+Real `screen` slides in a `browser` or `window` frame, no treatment; zoom and click on what the voice names. A `mock` only when a real shot can't be had (it keeps its "Recreated from …" label).
+
 ## Avoid
 
 Drawn or generated pictures of a real product screen, invented UI, real customer names, more than three slides of the same layout in a row.

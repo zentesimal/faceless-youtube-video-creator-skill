@@ -41,6 +41,10 @@ The whole video is one uninterrupted voiceover, no section breaks heard as pause
 
 Not fixed: asked per video. A calm, steady narrator suits it (`am_michael`, or `af_heart` for warmth). Continuity settings in `style.json`: 0.05 s between slides, 0.2 s between sections, pauses inside a line capped at 0.2 s.
 
+## Product screens
+
+`screen` slides get the wobbly ink frame; a `mock` is lettered by hand like the slides, which suits this look when a real screenshot would feel out of place (it stays labelled as recreated). `"screenTreat": "sketch"` greys real screenshots onto the paper.
+
 ## Avoid
 
 - Copying another channel: its titles, catchphrases, sign-off or artwork. Borrow devices, not words.

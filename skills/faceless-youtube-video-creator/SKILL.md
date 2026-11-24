@@ -13,7 +13,10 @@ description: >-
   surprise) built in, renders slides with an AI voiceover (free Kokoro
   voice, or an OpenAI voice that acts the script: asked per video), or a generated illustration for every sentence (Story
   teller mode), optional animations and illustrated scenes (a mascot, people, robots,
-  backgrounds), subtitles and real chapter times, writes titles and the
+  backgrounds), product screens (real screenshots it captures from public pages or
+  logged-in apps, or reuses, animated like a demo: zoom into an option, spotlight,
+  a cursor clicks, the real result appears; or a labelled UI recreated in the
+  video's style), subtitles and real chapter times, writes titles and the
   description, and renders two thumbnails for YouTube's Test & compare, shows
   them and re-renders them from your feedback until you approve them; once
   the video is approved, makes 3 vertical YouTube Shorts from it (re-rendered
@@ -22,8 +25,8 @@ description: >-
   run asks a few questions (channel, topic area, look) and saves them in
   faceless-youtube.config.json. Use when someone asks for a YouTube video, a
   faceless or long-form video, a video script, video ideas from a CSV or
-  keyword list, YouTube (A/B) thumbnails, or Shorts (or a Short's cover) from one of their long
-  videos, even if they don't say "skill".
+  keyword list, YouTube (A/B) thumbnails, Shorts (or a Short's cover) from one of their long
+  videos, or product screenshots and UI walkthrough animations inside such a video, even if they don't say "skill".
 ---
 
 # Faceless YouTube video creator (8–20 min)
@@ -39,6 +42,7 @@ Turns "make a YouTube video about X" (or "…from this CSV") into a finished, up
 | Mode               | **asked in §1b, with free or paid**: `slides` (the default: the key line, lists, diagrams and proof on slides) or `storyteller` (Story teller: a generated illustration for every sentence, about 100–250 pictures for 8–20 min; needs generated illustrations); saved as `mode`                                                                                                                                           |
 | Voice              | **asked in §1b**, with samples in the video's language: free Kokoro `af_heart` · `af_bella` · `am_michael` (Spanish: `ef_dora` · `em_alex`), or OpenAI `openai:coral` · `openai:sage` · `openai:onyx` (any language) when §1b's first answer includes the OpenAI voice, or 3 narrators from the user's ElevenLabs library (`elevenlabs:<voice id>`, model `eleven_v4`) when it's ElevenLabs; speed 0.92 (cloud voices 1.1) |
 | Extras             | **asked in §1b**: animations "when suitable" (recommended) or still slides                                                                                                                                                                                                                                                                                                                                                 |
+| Product screens    | optional, when an idea's proof is a product or a page (§3, §5a): real screenshots captured by `capture-screens.mjs` (public pages, logged-in apps with a saved session, images from docs, your own files) on `screen` slides that zoom, spotlight, click and show the real after-state; or a `mock` (UI recreated in the look, always labelled, never proof)                                                               |
 | Pictures           | `scene` slides (vector: the mascot, person, robot, 8 backgrounds + 3 layered worlds, props) in every look; free, no network; camera, particles and map marks with animations on                                                                                                                                                                                                                                            |
 | Viewer level       | **asked first in §1a, before anything else**: how technical the target viewer is, 0–5 (0 never used the topic's tools … 2 everyday user … 5 expert), or the developer audience (`"audience": "developer"` + a level, 4 by default); saved as `level`; sets the recommended length, the vocabulary, the comparisons and the depth (script playbook › Viewer level)                                                          |
 | Length             | **asked in §1a**: 8–20 min, recommended from the viewer level (8–10 at 0–1, 10–12 at 2, 15 at 3–4, 18–20 at 5); 2–3 ideas at 8–9, 3–4 at 10–13, 4–5 from 14; saved as `minutes`                                                                                                                                                                                                                                            |
@@ -360,11 +364,14 @@ Rename `$W` if the topic changed the slug, and write `$W/brief.md`:
 - topic, pillar, target viewer and **viewer level** (0–5, plus the developer audience when chosen, with what it means here: the terms the script may use and the ones it must explain or avoid, the comparisons it will lean on), **the promise** (one sentence the hook, title and thumbnails all keep);
 - the ideas in order, each: claim · why it works · proof on screen (the exact real artifact for the slide) · the catch · bridge to the next. The strongest _easy_ idea goes first, the best one after the mid hook. Worked examples of a whole video in this shape, at levels 0–4 and 8–18 min (hook, intro, each idea's claim · proof · catch, mid hook, summary, outro, titles and the two thumbnail angles): `references/video-ideas.example.csv`, one row per video; use it as a model, never as content.
 - **Facts to verify** (with research done, cite its source numbers and check only what it didn't cover): every model name, number, price, limit or availability claim, each checked with a web search (or the user's own files, the CSV, or Zentesimal Internal Q&A for their own product's facts when connected) and listed with its source and date. Unverified ones are flagged, not used. Claims the data doesn't support (e.g. _why_ rows were cut) stay out of the script;
-- the CSV evidence behind the topic.
+- the CSV evidence behind the topic;
+- **Screens to show** (when an idea's proof is a product, an app or a web page): for each, the source (a public URL, an app behind a login, an image from docs or a help center, a file the user gives), the states to capture (before → after a click), the targets the voice will point at (the button, the menu, the result), and whether a real shot is possible. A real shot is proof; when it can't be had (no access, data that can't be shown even redacted), plan a `mock` and say so. Never invent what a screen shows: the labels come from the real page or the app's own source.
 
 ### 4. Script
 
 Write `$W/script.md` exactly in the playbook's format (`## [HOOK]`, `## [INTRO]`, `## [IDEA 1] <chapter title>`, …, `## [MID HOOK]`, …, `## [SUMMARY]`, `## [OUTRO]`; cues on `>` lines; `> CHANNEL` and `> SUBSCRIBE` markers where the reminders go), with `> SLIDE {…}` cues **as dense as the pace asks** (pace table in the video playbook: a cue per 1–3 lines at pace 1–2, a cue per line at 4, a visual per sentence at 5; lists as `points` with `reveal` from pace 3). The mid hook's subscribe ask uses a `subscribe` slide; the outro ends on an `end` slide. Give the abstract moments a picture: a `scene` (the ghost, a person or a robot acting it out) for the hook's situation, analogies, the catch and the subscribe lead-in, about one slide in five (one in three in the paint look, alongside doodles); an `illustration` only when generated illustrations are on (video playbook, "Pictures"). When the voice explains how things connect (a process, a loop, a concept and its parts, cause and effect), use a `flow` diagram instead of a `points` list, built one box per line with `reveal: "build"` (video playbook, "Diagrams"); at least one per video when the topic has a process in it. Illustrated look: about two slides in three are pictures (`scene` on the layered worlds `aurora` · `sea` · `dawn`, or `illustration` with `layers`), with `fx` particles, `marks` (pins, paths, rings) instead of lists, and a `camera` pushed into what the voice names (video playbook, "Illustrated worlds"; the preset's `style.md`). Story look: follow the playbook's "Story-telling" section. Write at the viewer level (`level` in `style.json`; script playbook › Viewer level): its words, its comparisons, its depth and its kind of proof. Write for the ear: it's read by a voice. Write it in the `language` from `style.json`; for Spanish follow the script playbook's Spanish rules and translate the `channel.md` reminder and subscribe lines naturally (don't mix languages on screen or in the voice; product names stay as they are). **Mark the lines that need to land** with `> BEAT` on its own line right after them: the hook's promise, each idea's wow line (the reveal, the surprising number, the payoff), the mid hook's tease. The renderer leaves a beat there (3× the normal pause, ≈ 0.6 s) so the viewer takes the chunk in before the next idea, and it adds one by itself after the last line of every section but the outro (the conclusion), so don't mark those. Put the wow line on its own spoken line (a `> BEAT` after a line in the middle of a slide splits that slide's voice there). About one or two per idea; a beat after every line is just slow. Use the reminder and subscribe lines from `channel.md`, adapted to the video, never two identical ones.
+
+**Product screens** (when the brief has "Screens to show"): a `screen` cue per spoken line that points at something, each with one `move` (zoom, spotlight, cursor + click, `then` the after-state), so the picture moves when the voice names the thing; the next cues leave out `shot` and continue on the same screen (video playbook › Product screens). Say what's on screen in the voice ("click **Add rule**"), using the page's own labels. A `mock` only where the brief planned one, and never as an idea's only proof (`script-stats.mjs` warns).
 
 **Emotion pass (always, before the checker).** Reread the script as a listener and give it an emotional arc (script playbook › Emotion and delivery): the hook opens a question or a mystery (intrigue, then suspense, then the surprise), every idea has a reveal the viewer feels (its wow line, `> TONE surprise`) and an honest catch (`serious`), the mid hook teases (`intrigue` or `suspense`), the reminders and the goodbye are `warm`. First fix the words (a question before the answer, the setup before the payoff, a short line after a long one, the number said on its own), then mark the lines with `> TONE <name>` on its own line right before them: about 10–30 % of the lines, never two suspense lines without a payoff. Then:
 
@@ -383,6 +390,21 @@ It also prints the tones and warns when the hook, an idea or the mid hook has no
 Then reread the script once as the viewer: does the first sentence pay off the title/thumbnail? Does it make you want to hear the next line? Is every open loop closed? Is anything in the "avoid" list? Is any model output, screen or number invented instead of taken from a real artifact?
 
 ### 5. Video
+
+#### 5a. Screens first (only when the script has `screen` cues)
+
+Write `$W/screens/shots.json` from the brief's "Screens to show" (format: video playbook › Product screens), then:
+
+```bash
+node ${CLAUDE_SKILL_DIR}/scripts/capture-screens.mjs $W            # every shot → $W/assets/screens/
+node ${CLAUDE_SKILL_DIR}/scripts/capture-screens.mjs $W --list     # what was captured, sizes, target boxes
+```
+
+- **Logged-in apps**: the user signs in once in a visible window, and the session is saved to `<workspace>/.auth/<name>.json` (a live login: keep the workspace out of git, never share it). It needs their hands, so ask them to run it themselves (in Claude Code, with the `!` prefix): `! node ${CLAUDE_SKILL_DIR}/scripts/capture-screens.mjs --login myapp https://app.example.com --until /dashboard`. Shots with `"login": "myapp"` reuse it; when it expires, the script says so.
+- **Redaction**: before every picture the script applies the config's `screens.redact` rules (e.g. the account name in the app's sidebar → "Demo Account"), the file's and the shot's `redact` rules, and blurs every email and phone number it sees (`"pii": false` turns that off). It prints what it changed. Still `Read` **every** PNG before using it: no customer names, emails, ticket text or numbers that aren't the user's to show; add a `redact` rule and re-capture if anything slipped through.
+- **Images from docs or a help center**: add each image URL as a `fetch` shot (with `"page"` = the article URL for the credit).
+- A target that isn't found stops it with exit 2 and lists what the page offers (buttons, links, headings): fix the selector, never guess coordinates for a real page.
+- Then check the moves on the sheet and with `--preview` (below): the zoom lands on the target, the cursor clicks it, the after-state is the real result.
 
 **Pictures first** (only if `illustrations` is on and the script has `illustration` cues or scene `bg: {"prompt": …}`):
 
@@ -501,7 +523,8 @@ Reply with, in this order:
    - Once per channel: Studio › Customization › Branding › Video watermark adds a subscribe button to every video automatically.
 5. What needs the user:
    - claims to confirm (anything about their own work the data can't prove) and facts flagged as unverified;
-   - hosts the network blocked (e.g. real screenshots);
+   - hosts the network blocked (e.g. real screenshots), and screens planned but not captured (a login they need to do, a page that needs data);
+   - which screens are real and which are `mock` (recreated): the mock slides carry their label on screen, but say it here too;
    - the channel handle (and avatar) in the config or the `channel/` kit if still a placeholder: the Subscribe slide shows them;
    - whether to change the look, pace, voice or extras (one `style.json` edit and a re-render);
 6. Runners-up topics, one line each, so they can say "do #2".
@@ -562,6 +585,8 @@ Every script reads its variables through `scripts/env.mjs`, always in this order
 - `scripts/env.mjs` + `references/env.example`: how every script reads variables (environment, then the project's `.env`) and the variables it knows.
 - `scripts/render-video.mjs` + `assets/slide.html` + `scripts/tts.py`: slides, Kokoro voice, MP4 (motion + crossfades at pace ≥ 3, animated slides filmed frame by frame), subtitles, real chapters, `out/timeline.json`; `--preview` for single slides; a Short (`"format": "short"` or `--vertical`) at 1080×1920 with burned-in captions.
 - `assets/scenes.js`: the `scene` layout's backgrounds (including the layered worlds `aurora`, `sea`, `dawn`), characters (ghost, person, robot), poses and props, drawn in the theme's colours.
+- `scripts/capture-screens.mjs` + `scripts/screens.mjs`: product screens from `$W/screens/shots.json` (public pages, logged-in apps via `--login`, `fetch`ed images, your own files) into `$W/assets/screens/`, with target boxes, redaction and a source credit.
+- `assets/screens.js`: the `screen` and `mock` layouts (frame, camera to a target, spotlight, cursor and click, the after-state, treatments; the recreated-UI kit).
 - `assets/slide.html`: every layout, plus the illustrated-world engine (camera with parallax, `fx` particles, `marks`) and the animations.
 - `scripts/gen-images.mjs`: generated illustrations and scene backgrounds (OpenAI Image API; model = config `models.image`), in the look's image style. Generates 4 at a time (`--jobs`); a `{Name}` in a prompt takes its description from `style.json` `"characters"`.
 - `scripts/storyteller.mjs`: Story teller mode (a picture per sentence): sentence splitting, the one-sentence-per-picture checks, `{Name}` characters, the camera moves; shared by `script-stats.mjs`, `render-video.mjs`, `gen-images.mjs` and `style.mjs`.

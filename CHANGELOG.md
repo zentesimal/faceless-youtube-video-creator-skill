@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 (2026-11-24)
+
+Product screens, animated like a demo.
+
+- **`screen` slides**: real screenshots in a browser, window or phone frame drawn in your look, with a `move` per spoken line: the camera zooms into a target (`zoom`), a spotlight dims the rest (`spot`), a cursor travels there on an arc and clicks (`cursor`, `click`), and the real next state fades in (`then`). Consecutive cues on the same screen continue where the last one left off. Treatments (`tint`, `duotone`, `sketch`, or `"screenTreat"` in `style.json`) fit a screenshot to looks where a raw one clashes; the paint look draws the frame in wobbly ink. Each frame carries a source credit ("Screenshot · docs.example.com, Nov 2026"). In a Short, the frame becomes a portrait crop around `focus`. Screens count as an idea's proof.
+- **`scripts/capture-screens.mjs`**: captures the screens from `$W/screens/shots.json` with Playwright: public pages, apps behind a login (sign in once with `--login <name> <url>`; the session is kept in `<workspace>/.auth/`), images by URL (`fetch`) or your own files (`src`). Each shot can have states (before → after `do` steps: click, fill, press, scroll, wait…), and records every target's box, so the moves land exactly on the button. Before every picture it applies the config's new `screens.redact` rules and the shot's `redact`, and blurs emails and phone numbers. A selector that misses lists what the page offers instead.
+- **`mock` slides**: a UI recreated in your look's colours and fonts from real labels (sidebar, breadcrumb, tabs, cards, rows, toggles, fields, tables, stats, buttons, a dialog, a toast), with the same moves and states. Always labelled "Recreated from <app> · illustrative UI" on screen; never counted as proof (`script-stats.mjs` warns when it's an idea's only one).
+- `launchBrowser()` accepts launch options (used for the visible login window).
+
 ## 0.5.0 (2026-11-22)
 
 ElevenLabs voices as a first-class option, and thumbnails that state a direct claim.

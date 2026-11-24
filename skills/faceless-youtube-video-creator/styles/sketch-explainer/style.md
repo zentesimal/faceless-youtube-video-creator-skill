@@ -29,6 +29,10 @@ Cream paper ground with grain and a soft vignette (`grain` texture), near-black 
 - Write illustration prompts as one moment with one subject: "a person running past a grey crowd with a toppling stack of books and two glowing ochre briefcases". Never ask for text in a picture.
 - Keep the background grey and the subject inked; colour only the thing the idea is about.
 
+## Product screens
+
+`"screenTreat": "sketch"` (greyscale on paper) for real screenshots, or a `mock` when a drawn UI fits the story better (labelled as recreated).
+
 ## Avoid
 
 - Copying the reference: its frames, characters or compositions. Borrow the technique (ink subject, grey crowd, ochre accent), not the drawing.

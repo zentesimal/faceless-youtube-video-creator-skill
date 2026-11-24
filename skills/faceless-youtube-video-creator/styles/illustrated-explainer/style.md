@@ -35,6 +35,10 @@ The preset turns on `"camera": "auto"`: every `illustration`, and every `scene` 
 - With generated illustrations: write `layers` as one backdrop (sky, far scenery, ground plane; no characters) plus one or two cut-outs (a foreground rock or ice floe, a midground island, a tree), each a separate prompt. Put the mascot in with `cast`, never in the prompt, so it looks the same in every shot and can act.
   - Tested 2026-11-17 (one backdrop + two cut-outs, about 80 s to generate): the backdrop comes back opaque and the cut-outs as RGBA with soft glow edges, and they stack cleanly (no boxes or seams; a cut-out island's own patch of water blends into the backdrop sea). Two things to watch: the model leans painterly rather than flat vector, so the drawn mascot can look flatter than the world around it; and every cut-out comes back in the middle of its frame, whatever the prompt asks, so place it with the layer's `x`, `y` and `scale`, put the ring on that spot and the figure's `x` on the empty side (checked again 2026-11-17 on four shots).
 
+## Product screens
+
+A `screen` with `"treat": "tint"` sits better between the illustrations; keep them for proof and let the pictures carry the story.
+
 ## Avoid
 
 - Copying the reference: its characters (its mascot is theirs; yours is your own), its compositions, maps, colours as a set, titles or wording. Borrow the techniques only: layered depth, glow, particles, pins, a moving camera.

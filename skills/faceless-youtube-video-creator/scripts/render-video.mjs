@@ -33,6 +33,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { loadScreen } from './screens.mjs'
 import { STORY_FADE, STORY_MAX, STORY_MOVES, isStoryteller, storyChecks } from './storyteller.mjs'
 import {
   channel,
@@ -417,10 +418,54 @@ all.forEach((s, si) => {
     }
   })
 })
+// product screens (screen, mock): a cue without its own `shot` / `src` / `page` continues the previous one's
+// (same frame, title, states). Consecutive cues on the same screen carry their moves in `_history`, so the
+// camera, state, spotlight and cursor start where the previous cue left them (assets/screens.js).
+const SCREEN = ['screen', 'mock']
+const INHERIT = [
+  'shot',
+  'src',
+  'boxes',
+  'page',
+  'states',
+  'app',
+  'frame',
+  'treat',
+  'url',
+  'source',
+  'own',
+  'focus',
+  'title',
+  'windowTitle'
+]
+const screenKey = (s) =>
+  s.layout === 'screen'
+    ? JSON.stringify(s.shot ?? s.src ?? null)
+    : JSON.stringify([s.page, s.states])
+all.forEach((s, i) => {
+  if (!SCREEN.includes(s.layout)) return
+  const p = all[i - 1]
+  const own = s.layout === 'screen' ? (s.shot ?? s.src) : s.page
+  if (own == null) {
+    if (!p || p.layout !== s.layout)
+      stop(
+        `script line ${s.line}: this ${s.layout} cue has no ${s.layout === 'screen' ? '`shot` or `src`' : '`page`'} and doesn't follow another ${s.layout} cue to continue`,
+        2
+      )
+    for (const k of INHERIT) if (s[k] === undefined && p[k] !== undefined) s[k] = p[k]
+  }
+  // (a chapter card between two ideas already breaks the run; a Short's sections don't)
+  if (p && p.layout === s.layout && screenKey(p) === screenKey(s))
+    s._history = [...(p._history || []), { state: p.state, move: p.move }]
+})
 // a slide that continues the previous one (same layout and title/text, e.g. a list stepping `current`) only
 // animates what changed
 all.forEach((s, i) => {
   const p = all[i - 1]
+  if (SCREEN.includes(s.layout)) {
+    if (s._history?.length) s._cont = true
+    return
+  }
   if (
     p &&
     !s.auto &&
@@ -439,6 +484,7 @@ const html = readFileSync(join(skill, 'assets/slide.html'), 'utf8')
   .replace('/*FONTS*/', () => fontsCss(style))
   .replace('/*DOODLES*/', () => readFileSync(join(skill, 'assets/doodles.js'), 'utf8'))
   .replace('/*SCENES*/', () => readFileSync(join(skill, 'assets/scenes.js'), 'utf8'))
+  .replace('/*SCREENS*/', () => readFileSync(join(skill, 'assets/screens.js'), 'utf8'))
   .replace('__LOGO__', () => (style.brand && style.logo ? dataUrl(style.logo) : ''))
   .replace('__YTICON__', () => (existsSync(ytIcon) ? dataUrl(ytIcon) : ''))
 const pagePath = join(vdir, '.slide.html')
@@ -615,7 +661,8 @@ for (const s of all) {
 // overlaps the next slot, which keeps every slide starting exactly at its timeline time.
 const clipsDir = join(vdir, 'clips')
 const pushes = (s) =>
-  s.layout !== 'end' && s.layout !== 'subscribe' && (P.push === 'all' || P.push.includes(s.layout))
+  !['end', 'subscribe', 'screen', 'mock'].includes(s.layout) &&
+  (P.push === 'all' || P.push.includes(s.layout))
 // transition out of frame i into frame i+1: cut inside a subscribe click, into/out of punchy word slides at pace 5
 const fadeOut = (i) => {
   const a = frames[i]
@@ -680,6 +727,7 @@ const stillClip = (fr, i) => {
 const animTemplate = createHash('sha1')
   .update(html)
   .update(readFileSync(join(skill, 'assets/scenes.js')))
+  .update(readFileSync(join(skill, 'assets/screens.js')))
   .digest('hex')
 async function animClip(fr, i, spec) {
   const { n, vf } = plan(i)
@@ -787,6 +835,13 @@ for (const fr of frames) {
     _frame: fr.f ?? undefined,
     _camera: cameraFor(s)
   }
+  if (s.layout === 'screen') {
+    const r = loadScreen(W, s, style.language)
+    if (r.error) {
+      console.error(`PROBLEM [${s.id}, line ${s.line}]: ${r.error}`)
+      failed = true
+    } else spec._scr = r.scr
+  }
   if (s.layout === 'image' && s.src) {
     const p = resolve(W, s.src)
     if (!existsSync(p)) {
@@ -837,7 +892,9 @@ for (const fr of frames) {
         mascot: style.mascot,
         theme: style.theme,
         fonts: fam,
-        channel: ch
+        channel: ch,
+        lang: style.language === 'es' ? 'es' : 'en',
+        treat: style.screenTreat
       }
     ]
   )
@@ -845,7 +902,7 @@ for (const fr of frames) {
     Promise.all([...document.images].map((im) => im.decode().catch(() => {})))
   )
   await page.waitForTimeout(
-    ['image', 'subscribe', 'illustration'].includes(s.layout) || spec._bg ? 120 : 0
+    ['image', 'subscribe', 'illustration', 'screen'].includes(s.layout) || spec._bg ? 120 : 0
   )
   if (errors.length) stop(`slide ${s.id}: template error: ${errors.join(' | ')}`, 2)
   if (fr.k === 0) {

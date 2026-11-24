@@ -54,6 +54,9 @@ export const DEFAULTS = {
     illustrations: false,
     mode: 'slides'
   },
+  // product screens (capture-screens.mjs): redactions applied before every picture, e.g.
+  // {host: 'app.example.com', selector: '.account-name', text: 'Demo Account'}
+  screens: { redact: [] },
   paths: {
     workspace: './videos',
     topics: './youtube-topics.csv',
@@ -403,9 +406,13 @@ export async function loadPlaywright() {
   )
 }
 
-/** Headless Chrome (Playwright's Chromium, or Google Chrome, or CHROMIUM_PATH). */
+/**
+ * Headless Chrome (Playwright's Chromium, or Google Chrome, or CHROMIUM_PATH). `opts` go to chromium.launch
+ * (capture-screens.mjs --login passes {headless: false} for a visible window).
+ */
 export async function launchBrowser(
-  args = ['--font-render-hinting=none', '--force-color-profile=srgb']
+  args = ['--font-render-hinting=none', '--force-color-profile=srgb'],
+  opts = {}
 ) {
   const pw = await loadPlaywright()
   const chromium = env('CHROMIUM_PATH')
@@ -413,7 +420,7 @@ export async function launchBrowser(
     ? [{ executablePath: chromium }]
     : [{}, { channel: 'chrome' }, { executablePath: '/opt/pw-browsers/chromium' }]) {
     try {
-      return await pw.chromium.launch({ ...o, args })
+      return await pw.chromium.launch({ ...o, ...opts, args })
     } catch {}
   }
   throw new Error(

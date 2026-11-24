@@ -27,6 +27,10 @@ Off-white ground, near-black text and dark slides, red (`main`) for numbers and 
 - One highlight per slide, on the word that carries the claim.
 - Sources on screen: put the publisher and date in the slide's `note` or `sub`.
 
+## Product screens
+
+Real `screen` slides in a plain `window` or `browser` frame, no treatment; the source credit under the frame is the citation.
+
 ## Avoid
 
 Unsourced numbers, charts drawn from memory, more than one signal colour per slide, decorative pictures.

@@ -46,6 +46,8 @@ Third: ship small, and ship often.
 | `fields`       | a real record: CMS fields, settings                                          | `title`, `fields: [{k, v, n?, bad?}]` (`n` = a note like "51 chars ✓")                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `chat`         | a prompt the viewer can copy                                                 | `title`, `bubbles: [{role: "user"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | "ai", text}]`, `note` |
 | `image`        | a real screenshot or picture                                                 | `src` (path relative to `$W`, e.g. `assets/step-1.png`), `title`, `caption`, `alt`                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `screen`       | a real product screen, animated like a demo (counts as proof)                | `shot` (captured by `capture-screens.mjs`) + `state`, or `src` (a file, or `{state: file}`) + `boxes`; `move` (`zoom` · `spot` · `cursor` + `click` · `then`; one step or a list), `frame` (`browser` · `window` · `phone` · `none`), `treat` (`tint` · `duotone` · `sketch`), `focus`, `title`, `caption`, `source`; see "Product screens"                                                                                                                                                                                              |
+| `mock`         | a UI recreated in the look, labelled "Recreated from …" (never proof)        | `app`, `page` (`url`, `nav`, `active`, `crumbs`, `heading`, `tabs`, `tab`, `blocks`, `cols`, `dialog`, `toast`), `states` (`{name: partial page}`), `move`, `title`, `caption`; see "Product screens"                                                                                                                                                                                                                                                                                                                                    |
 | `point`        | one point, full screen (what `reveal:"one"` makes)                           | `n`, `of`, `text`, `title`, `highlight`, `sub`, `size`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `word`         | 1–3 huge words: punches, turns (pace 4–5)                                    | `text`, `highlight`, `sub`, `theme: "dark"`, `size`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `quote`        | a line someone said or wrote (story look)                                    | `text`, `by`, `size`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -101,6 +103,101 @@ Two kinds, both **illustrations, never proof**: they show a situation or a metap
 ```
 
 **`illustration`** (only when the user chose generated illustrations in §1b): `scripts/gen-images.mjs` sends the cue's `prompt` with the look's image style (`style.mjs` › `imageStyle`; the config's `look.imageStyle`, a preset or `$W/style.json` can set its own) to the OpenAI Image API (model = the config's `models.image`, 1536×864; key = `OPENAI_API_KEY`). Write the prompt as a scene ("the ghost mascot sorting a mountain of support tickets into three neat piles"), never with words to render: the slide adds the text. Until the picture exists, `--slides` shows a placeholder and the full render exits 2. Use it for the two or three moments that deserve a richer picture (the hook, the big turn), not as wallpaper; in Story teller mode, every sentence gets one (below).
+
+## Product screens (`screen`, `mock`)
+
+Show a product the way a demo does: the real screen in a frame, the camera pushing into the option the voice names, a spotlight on it, a cursor that clicks, and the real result fading in. Two layouts share the moves:
+
+- **`screen`**: a real screenshot. Proof, like a `doc` or `table`. Captured by `scripts/capture-screens.mjs` (public pages, apps behind a login, images from a help center or docs, files you have), with a source credit under the frame ("Screenshot · docs.example.com, Nov 2026").
+- **`mock`**: a UI recreated in the look's own colours and fonts from real labels, for when a real shot can't be had (no access, data that can't be shown) or the look needs the UI drawn in its style (the paint look draws it by hand). It always carries "✎ Recreated from <app> · illustrative UI" under the frame, and it is never an idea's proof.
+
+### Capture (`$W/screens/shots.json`)
+
+```json
+{
+  "redact": [{ "find": "Acme Corp", "replace": "Demo Account" }],
+  "shots": [
+    {
+      "id": "settings",
+      "url": "https://app.example.com/workflows/…/settings",
+      "login": "myapp",
+      "viewport": [1440, 900],
+      "wait": "text=Settings",
+      "hide": ["#intercom-container"],
+      "targets": { "approval": "role=switch[name='Requires human approval']" },
+      "states": [
+        { "name": "before" },
+        {
+          "name": "after",
+          "do": [{ "click": "approval" }, { "wait": 400 }],
+          "targets": { "saved": "text=Saved" }
+        }
+      ]
+    },
+    { "id": "docs", "url": "https://platform.openai.com/docs/…", "crop": "main" },
+    {
+      "id": "help-1",
+      "fetch": "https://docs.example.com/images/step-2.png",
+      "page": "https://docs.example.com/guide/…"
+    },
+    {
+      "id": "mine",
+      "src": "assets/my-shot.png",
+      "boxes": { "menu": [120, 80, 300, 60] },
+      "own": true
+    }
+  ]
+}
+```
+
+- `targets`: name → Playwright selector (`text=…`, `role=button[name='…']`, CSS). The script records each target's box in the picture's pixels, so the moves land exactly on it; a missing one stops the capture and lists what the page offers. The shot's targets must be on its first state; a state's own targets on that state.
+- `states`: pictures of the same page in order; `do` steps run before each one (`click`, `hover`, `fill` `[target, text]`, `press`, `scroll`, `wait` (selector or ms), `goto`, `eval`). Capture the real result of the click: that's the `then` of the move.
+- `viewport` (default 1440×900) at `scale` 2 (sharp when zoomed); `crop` (a selector) keeps one panel; `dark: true`, `locale`, `css` and `hide` adjust the page. None of it is saved to the app.
+- `login: "<name>"`: a session saved once with `capture-screens.mjs --login <name> <sign-in url>` (a visible window; the user signs in and closes it). Stored in `.youtube-videos/.auth/` (gitignored).
+- **Redaction** before every picture: the config's `screens.redact` rules (e.g. your app's account name → "Demo Account"; a rule with `host` only applies there), the file's and shot's `redact` (`{selector, text}`, `{selector, blur: true}`, `{find, replace}`), and every email and phone number blurred (`"pii": false` turns it off). Read every picture anyway.
+- `fetch`: an image URL (a help-center or docs screenshot); `src`: a file you have (`own: true` = yours, no credit needed).
+
+### Moves
+
+```markdown
+> SLIDE {"layout":"screen","shot":"settings","title":"Turn on approvals"}
+
+Open the workflow's settings.
+
+> SLIDE {"layout":"screen","move":{"zoom":"approval","spot":"approval"}}
+
+This switch is the whole feature.
+
+> SLIDE {"layout":"screen","move":{"cursor":"approval","click":true,"then":"after","keep":true}}
+
+Flip it, and every refund waits for a person.
+```
+
+- One cue per spoken line that points at something, one `move` each: the picture moves when the voice names the thing. A cue without `shot` (or `src`, or `page` for a mock) **continues** the previous one: same frame and title, and the camera, state, spotlight and cursor start where it left them.
+- A step's parts run in this order: `zoom` (a target, a box `[x, y, w, h]`, or `"out"`) → `spot` (a target; `false` removes it) → `cursor` (a target or `[x, y]`) → `click` → `then` (a state name). `move` can be a list of steps for one longer line.
+- `then` fades in the next state and eases the camera back out to it (a new page); `"keep": true` stays zoomed (a menu or toggle changing in place).
+- A cue with `"state": "after"` cuts straight to that state.
+- `focus` (a target): where a portrait crop centres in a Short.
+- Without animations, the slide shows the move's end (zoomed, spotlit, cursor on the target): still useful at pace 1–2.
+- **Timing**: zoom 1.3 s, spotlight 0.5 s, cursor 0.9 s, click 0.4 s, the next state 0.5 s (plus the frame's entrance on the first cue). A short line plays them faster (≤ 60 % of the slide); give a long step a line of its own.
+
+### Frames and looks
+
+- `frame`: `browser` (the default for a captured page: the real address in the bar), `window` (no address), `phone` (a mobile screenshot: rounded bezel), `none`.
+- The frame takes the look's colours; in the paint look it gets the wobbly ink border, and a `mock` is lettered by hand like the rest of the slide.
+- `treat` (or `"screenTreat"` in `style.json` for every screen): `tint` (a wash of the main colour), `duotone` (the look's ink and ground), `sketch` (greyscale on paper). For looks where a raw screenshot clashes; the text must still read.
+
+### Recreated UI (`mock`)
+
+```markdown
+> SLIDE {"layout":"mock","app":"Acme Desk","title":"Where you switch it on","page":{"url":"app.example.com/workflows/refunds/settings","app":"Acme Desk","nav":["Workflows","Inbox","Reports"],"active":"Workflows","crumbs":["Workflows","Refund requests","Settings"],"heading":"Refund requests","tabs":["Overview","Rules","Settings"],"tab":"Settings","blocks":[{"card":"Issue refund","chip":"Active","rows":[{"text":"Requires human approval","sub":"Sends it to a person before it runs","toggle":false,"id":"approval"}]}]},"states":{"on":{"blocks":[{"card":"Issue refund","chip":"Active","rows":[{"text":"Requires human approval","sub":"Sends it to a person before it runs","toggle":true,"id":"approval"}]}],"toast":"Saved"}},"move":{"zoom":"approval","cursor":"approval-toggle","click":true,"then":"on","keep":true}}
+```
+
+- A 1120×660 page: `nav` (sidebar) + `active`, `crumbs`, `heading`, `tabs` + `tab`, `blocks` (`cols: 2` for two columns), `dialog` (`{title, blocks, buttons}` over a dimmed page), `toast`.
+- Blocks: `{card, chip?, sub?, button?, rows, buttons?}` (a row: `{text, sub?, chip?, toggle?, button?, id?}`), `{toggle, on, sub?}`, `{field, value | placeholder, area?}`, `{select, value}`, `{table: {columns, rows, mark?, ids?}}` (a cell `"[text]"` is a pill), `{stats: [{value, label}]}`, `{buttons: [text | {text, primary?, danger?, id?}]}`, `{chat: [{role, text}]}`, `{text}`.
+- `id` on any element makes it a target; a row's controls are `<id>-toggle`, `<id>-chip`, `<id>-button`.
+- `states`: each name is a partial page merged over `page` (give the whole `blocks` list again when it changes).
+- Labels come from the real UI (the page itself, or the app's source code); names and numbers are illustrative. The renderer fails a page too tall for its frame.
 
 ## Story teller mode
 
@@ -213,6 +310,7 @@ Marks, particles and the camera are **drawings over an illustration**, not data:
 | `doc`                                    | lines type in, top to bottom                                                                                                                                        |
 | `chat`                                   | bubbles pop in, in order                                                                                                                                            |
 | `image`                                  | a gentle zoom settle; the text plate rises                                                                                                                          |
+| `screen`, `mock`                         | the frame rises in, then the `move`: camera push, spotlight, cursor on an arc, click ripple, the next state fading in (continued cues: only the move)               |
 | `illustration`                           | a zoom settle (or the camera move), cut-out layers rise in, then the cast as on a `scene`                                                                           |
 | `doodle`                                 | the drawing draws itself, stroke by stroke, then fills                                                                                                              |
 | `scene`                                  | the background settles, props and characters pop in, each acts its pose (wave, shrug, hop, jump, droop), extras and bubbles pop                                     |
@@ -242,10 +340,11 @@ Marks, particles and the camera are **drawings over an illustration**, not data:
 - **Slide length follows the pace** (table above). The contact sheet (`video/sheet.png`) prints every frame's duration and flags slides too long for the pace with ⚠.
 - **Show, don't transcribe.** The slide carries the key phrase, the number or the artifact, never the paragraph being read.
 - **Pictures are illustrations.** `scene`, `illustration` and `doodle` slides show situations and metaphors; they never count as an idea's proof and never depict a real product screen, a real person, real data or an AI output.
-- **Proof is a real artifact.** Every idea needs at least one `table`, `doc`, `fields`, `chat` or `image` slide built from real material (your files, sheets, prompts, a real screenshot). Never draw a fake product screen or invent an AI output; if you need a screenshot you can't get, say so and use the artifact's text instead. Label anything illustrative as such (`"file":"draft format (illustration)"`).
+- **Proof is a real artifact.** Every idea needs at least one `table`, `doc`, `fields`, `chat`, `image` or `screen` slide built from real material (your files, sheets, prompts, a real screenshot). A treated screenshot (`tint`, `duotone`, `sketch`) is still real. Never pass off a drawn product screen as real or invent an AI output: a recreated UI is a `mock`, labelled on screen, never the proof; if you need a screenshot you can't get, say so and use a `mock` or the artifact's text instead. Label anything illustrative as such (`"file":"draft format (illustration)"`).
+- **Other people's products**: show their screens for commentary and teaching, with the source credit the capture adds; no logos or screens as the thumbnail's main picture without a reason, and never in a way that suggests they endorse the video.
 - **No customer data**: no real customer names, emails or conversation text; use a demo account in screenshots and blur the rest.
 - Mix layouts: no more than three of the same layout in a row. Dark `statement` slides mark catches and turns.
-- **Real screenshots** go in `$W/assets/` and an `image` slide. If a screenshot you need is behind a login or a blocked host, say so and ask the user to drop the PNG in `$W/assets/`.
+- **Real screenshots** are captured with `capture-screens.mjs` onto `screen` slides (a page behind a login: the user signs in once with `--login`), or go in `$W/assets/` on an `image` slide when they don't need to move. If a host is blocked, say so and ask the user to drop the PNG in `$W/assets/`.
 
 ## Voice
 

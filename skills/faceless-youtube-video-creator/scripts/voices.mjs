@@ -4,10 +4,10 @@
 // Words per minute at speed 1.0, as rendered (pauses inside a line capped at 0.2 s), measured on real videos:
 //   kokoro      ≈ 201 (185 at the default 0.92; 2026-11 English and Spanish videos)
 //   openai      ≈ 155 (gpt-4o-mini-tts, coral, Spanish: 143 at 0.92, 2026-11-17)
-//   elevenlabs  ≈ 160 (not measured yet: an estimate; correct it after the first real render)
+//   elevenlabs  ≈ 181 (measured 2026-11-23: eleven_v4, Spanish narrator, 199 wpm at speed 1.1)
 // The render prints the real rate of every video ("voice: … wpm"); update a number here when it drifts.
 
-export const RATES = { kokoro: 201, openai: 155, elevenlabs: 160 }
+export const RATES = { kokoro: 201, openai: 155, elevenlabs: 181 }
 
 /** The speech model a cloud voice uses unless style.json `voiceModel` names one. ElevenLabs: eleven_v4 (Sept 2026),
  * the most expressive, reads the tones' audio tags; `"voiceModel": "eleven_multilingual_v2"` for the older, cheaper read. */

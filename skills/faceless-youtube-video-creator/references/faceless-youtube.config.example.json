@@ -11,8 +11,16 @@
   },
   "look": {
     "preset": "clean",
-    "colors": { "ground": "#f4f4f6", "main": "#2457d6", "second": "#14171f", "accent": "#f5a524" },
-    "fonts": { "display": "Fraunces", "body": "Inter" },
+    "colors": {
+      "ground": "#f4f4f6",
+      "main": "#2457d6",
+      "second": "#14171f",
+      "accent": "#f5a524"
+    },
+    "fonts": {
+      "display": "Fraunces",
+      "body": "Inter"
+    },
     "fontFiles": {},
     "texture": "dots",
     "logo": null,
@@ -39,5 +47,16 @@
     "elevenlabs": "eleven_v4"
   },
   "credit": true,
-  "integrations": { "zentesimal": false }
+  "integrations": {
+    "zentesimal": false
+  },
+  "screens": {
+    "redact": [
+      {
+        "host": "app.example.com",
+        "selector": ".account-name",
+        "text": "Demo Account"
+      }
+    ]
+  }
 }

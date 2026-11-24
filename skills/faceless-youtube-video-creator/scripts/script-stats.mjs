@@ -401,11 +401,13 @@ ideas.forEach((s, i) => {
     !s.cues.some(
       (c) =>
         /^(DEMO|SCREEN)/i.test(c) ||
-        /^SLIDE\s*\{.*"layout"\s*:\s*"(image|doc|table|fields|chat)"/.test(c)
+        /^SLIDE\s*\{.*"layout"\s*:\s*"(image|screen|doc|table|fields|chat)"/.test(c)
     )
   )
     warnings.push(
-      `[IDEA ${s.n}] has no DEMO/SCREEN cue or SLIDE showing a real artifact (image, doc, table, fields, chat): every idea needs proof on screen`
+      s.cues.some((c) => /^SLIDE\s*\{.*"layout"\s*:\s*"mock"/.test(c))
+        ? `[IDEA ${s.n}] shows the product only as a \`mock\` (recreated UI, not proof): add a real \`screen\`, or a doc, table, fields or chat with the real artifact`
+        : `[IDEA ${s.n}] has no DEMO/SCREEN cue or SLIDE showing a real artifact (image, screen, doc, table, fields, chat): every idea needs proof on screen`
     )
 })
 if (midIdx >= 0) {

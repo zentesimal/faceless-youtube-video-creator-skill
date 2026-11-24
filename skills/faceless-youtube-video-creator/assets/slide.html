@@ -3,7 +3,8 @@
   Video slide, 1920×1080 (or 1080×1920 for a Short: html.vertical). render-video.mjs fills the placeholders (fonts, logo) and calls
   window.show(slide, chrome) once per slide, then screenshots the page.
   slide:  one `> SLIDE {…}` cue from script.md (layouts: statement, points, number, table, doc, fields,
-          chat, image, point, word, quote, chapter, subscribe, end), plus `_src` (an image as a data URL) and
+          chat, image, screen, mock, point, word, quote, chapter, subscribe, end), plus `_src` (an image as a data URL),
+          `_scr` (a captured screen: size, source, states with their pictures and target boxes; screens.js) and
           `_frame` (subscribe: 0 resting, 1 cursor on the pill, 2 subscribed).
   chrome: { label, progress (0..1), name (wordmark), mascot (scene default cast), brand (false = no logo, wordmark or progress bar), theme ({ground, main,
           second, accent, texture: dots|grain|none}), fonts ({display, body} CSS stacks), channel ({name,
@@ -584,6 +585,540 @@
         font-size: 32px;
         color: var(--muted);
         text-align: center;
+      }
+      /* ---------- screen / mock: a product screen in a frame (assets/screens.js) ---------- */
+      .scr-area {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .scr {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        background: var(--card);
+        border: 3px solid var(--hair);
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 34px 70px -34px color-mix(in srgb, var(--second) 60%, transparent);
+      }
+      .scr.frame-none {
+        border: 0;
+        border-radius: 18px;
+      }
+      .scr.frame-phone {
+        padding: 28px;
+        border-radius: 64px;
+        border: 0;
+        background: var(--second);
+      }
+      .scr.frame-phone .scr-view {
+        border-radius: 40px;
+      }
+      .scr-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 58px;
+        padding: 0 22px;
+        flex: none;
+        background: color-mix(in srgb, var(--card) 90%, var(--main));
+        border-bottom: 3px solid var(--hair);
+      }
+      .scr-bar i {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--hair) 80%, var(--second));
+        flex: none;
+      }
+      .scr-url,
+      .scr-wt {
+        margin-left: 18px;
+        flex: 1;
+        min-width: 0;
+        font-size: 24px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .scr-url {
+        padding: 6px 20px;
+        border-radius: 999px;
+        background: var(--card);
+        border: 2px solid var(--hair);
+      }
+      .scr-view {
+        position: relative;
+        overflow: hidden;
+        background: #fff;
+      }
+      .scr-cam {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform-origin: 0 0;
+      }
+      .scr-pic {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+      .scr-img {
+        display: block;
+      }
+      .scr-cam.treat-tint .scr-pic::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--main);
+        mix-blend-mode: color;
+        opacity: 0.28;
+      }
+      .scr-cam.treat-duotone .scr-img {
+        filter: url(#scr-duotone);
+      }
+      .scr-cam.treat-sketch .scr-img {
+        filter: grayscale(1) contrast(1.35) brightness(1.06) sepia(0.12);
+      }
+      .scr-cam.treat-sketch .scr-pic::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--ground);
+        mix-blend-mode: multiply;
+        opacity: 0.35;
+      }
+      .scr-spot {
+        position: absolute;
+        border-radius: 16px;
+        border: 5px solid var(--accent);
+        box-shadow: 0 0 0 4000px color-mix(in srgb, var(--second) 52%, transparent);
+        pointer-events: none;
+      }
+      .scr-ripple {
+        position: absolute;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 6px solid var(--accent);
+        background: color-mix(in srgb, var(--accent) 25%, transparent);
+        pointer-events: none;
+      }
+      .scr-cursor {
+        position: absolute;
+        width: 64px;
+        height: 64px;
+        margin: -6px 0 0 -14px;
+        transform-origin: 14px 6px;
+        filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+        pointer-events: none;
+      }
+      .scr-foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 30px;
+        flex: none;
+        font-size: 24px;
+        color: var(--muted);
+        margin-top: -14px;
+      }
+      .scr-foot:empty {
+        display: none;
+      }
+      .scr-cap {
+        font-size: 32px;
+        color: var(--ink);
+        text-align: right;
+        flex: 1;
+      }
+      .scr-src {
+        font-family: 'JetBrainsMono', ui-monospace, monospace;
+        font-size: 21px;
+        white-space: nowrap;
+      }
+      .scr-recreated {
+        font-size: 22px;
+        font-weight: 600;
+        padding: 6px 18px;
+        border-radius: 999px;
+        border: 2px dashed var(--muted);
+        white-space: nowrap;
+      }
+      #stage.paint .scr {
+        border-color: transparent;
+        box-shadow: none;
+        overflow: visible;
+      }
+      #stage.paint .scr::before {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border: 8px solid var(--second);
+        border-radius: 26px 38px 20px 44px / 34px 20px 40px 22px;
+        filter: url(#wobble-soft);
+        pointer-events: none;
+        z-index: 2;
+      }
+      #stage.paint .scr-view,
+      #stage.paint .scr-bar {
+        border-radius: 0;
+      }
+      .vertical #stage .scr-url {
+        font-size: 22px;
+      }
+      /* the recreated UI kit (mock): virtual 1120×660 page in the look's colours and fonts */
+      .mk-page {
+        position: relative;
+        display: flex;
+        overflow: hidden;
+        font-family: var(--body);
+        font-size: 21px;
+        color: var(--second);
+        background: color-mix(in srgb, #fff 82%, var(--ground));
+        text-align: left;
+      }
+      .mk-side {
+        width: 250px;
+        flex: none;
+        padding: 26px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: color-mix(in srgb, var(--ground) 70%, #fff);
+        border-right: 2px solid color-mix(in srgb, var(--hair) 60%, transparent);
+      }
+      .mk-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        font-size: 22px;
+        margin-bottom: 20px;
+      }
+      .mk-logo {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: var(--main);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+      }
+      .mk-nav {
+        padding: 10px 14px;
+        border-radius: 10px;
+        color: color-mix(in srgb, var(--second) 75%, var(--ground));
+      }
+      .mk-nav.on {
+        background: color-mix(in srgb, var(--main) 14%, #fff);
+        color: var(--main);
+        font-weight: 600;
+      }
+      .mk-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .mk-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 34px;
+        border-bottom: 2px solid color-mix(in srgb, var(--hair) 50%, transparent);
+        color: color-mix(in srgb, var(--second) 65%, var(--ground));
+        font-size: 19px;
+      }
+      .mk-crumbs i {
+        font-style: normal;
+        margin: 0 6px;
+        opacity: 0.6;
+      }
+      .mk-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--accent) 60%, #fff);
+      }
+      .mk-head {
+        padding: 22px 34px 0;
+      }
+      .mk-head h2 {
+        margin: 0 0 14px;
+        font-size: 32px;
+        font-weight: 700;
+      }
+      .mk-tabs {
+        display: flex;
+        gap: 30px;
+        border-bottom: 2px solid color-mix(in srgb, var(--hair) 50%, transparent);
+      }
+      .mk-tab {
+        padding: 6px 2px 12px;
+        color: color-mix(in srgb, var(--second) 60%, var(--ground));
+      }
+      .mk-tab.on {
+        color: var(--main);
+        font-weight: 600;
+        box-shadow: inset 0 -4px 0 var(--main);
+      }
+      .mk-body {
+        padding: 24px 34px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        min-height: 0;
+      }
+      .mk-body.two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-content: start;
+      }
+      .mk-card {
+        background: #fff;
+        border: 2px solid color-mix(in srgb, var(--hair) 70%, transparent);
+        border-radius: 16px;
+        padding: 18px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .mk-card-h {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .mk-card-t {
+        font-weight: 700;
+        font-size: 23px;
+      }
+      .mk-card-h .right {
+        margin-left: auto;
+      }
+      .mk-sub {
+        font-size: 17px;
+        color: color-mix(in srgb, var(--second) 60%, var(--ground));
+      }
+      .mk-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 0;
+        border-top: 2px solid color-mix(in srgb, var(--hair) 35%, transparent);
+      }
+      .mk-row.solo {
+        background: #fff;
+        border: 2px solid color-mix(in srgb, var(--hair) 70%, transparent);
+        border-radius: 14px;
+        padding: 14px 20px;
+      }
+      .mk-row-t {
+        flex: 1;
+        min-width: 0;
+      }
+      .mk-chip {
+        font-size: 16px;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--main) 12%, #fff);
+        color: var(--main);
+        white-space: nowrap;
+      }
+      .mk-chip.good {
+        background: color-mix(in srgb, var(--good) 14%, #fff);
+        color: var(--good);
+      }
+      .mk-chip.bad {
+        background: color-mix(in srgb, var(--bad) 12%, #fff);
+        color: var(--bad);
+      }
+      .mk-toggle {
+        position: relative;
+        width: 52px;
+        height: 30px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--hair) 90%, var(--second));
+        flex: none;
+      }
+      .mk-toggle i {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      .mk-toggle.on {
+        background: var(--main);
+      }
+      .mk-toggle.on i {
+        left: 26px;
+      }
+      .mk-btn {
+        display: inline-block;
+        padding: 9px 20px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 19px;
+        border: 2px solid color-mix(in srgb, var(--hair) 80%, var(--second));
+        background: #fff;
+        white-space: nowrap;
+      }
+      .mk-btn.primary {
+        background: var(--main);
+        border-color: var(--main);
+        color: #fff;
+      }
+      .mk-btn.danger {
+        background: var(--bad);
+        border-color: var(--bad);
+        color: #fff;
+      }
+      .mk-buttons {
+        display: flex;
+        gap: 12px;
+      }
+      .mk-buttons.right {
+        justify-content: flex-end;
+        margin-top: 8px;
+      }
+      .mk-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .mk-k {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .mk-input {
+        background: #fff;
+        border: 2px solid color-mix(in srgb, var(--hair) 80%, var(--second));
+        border-radius: 10px;
+        padding: 10px 14px;
+        min-height: 48px;
+        white-space: pre-line;
+      }
+      .mk-input.area {
+        min-height: 110px;
+      }
+      .mk-input.empty {
+        color: color-mix(in srgb, var(--second) 45%, var(--ground));
+      }
+      .mk-input.select::after {
+        content: '⌄';
+        float: right;
+        opacity: 0.6;
+      }
+      .mk-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 19px;
+      }
+      .mk-table th {
+        text-align: left;
+        font-size: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: color-mix(in srgb, var(--second) 55%, var(--ground));
+        padding: 6px 10px;
+      }
+      .mk-table td {
+        padding: 10px;
+        border-top: 2px solid color-mix(in srgb, var(--hair) 35%, transparent);
+      }
+      .mk-table tr.mark td {
+        background: color-mix(in srgb, var(--accent) 16%, #fff);
+      }
+      .mk-stats {
+        display: flex;
+        gap: 16px;
+      }
+      .mk-stat {
+        flex: 1;
+      }
+      .mk-stat-v {
+        font-size: 40px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--main);
+      }
+      .mk-stat-k {
+        font-size: 17px;
+        color: color-mix(in srgb, var(--second) 60%, var(--ground));
+      }
+      .mk-text {
+        margin: 0;
+        line-height: 1.4;
+      }
+      .mk-chat {
+        gap: 12px;
+      }
+      .mk-bubble {
+        max-width: 78%;
+        padding: 12px 18px;
+        border-radius: 18px;
+        line-height: 1.35;
+      }
+      .mk-bubble.user {
+        align-self: flex-end;
+        background: var(--main);
+        color: #fff;
+      }
+      .mk-bubble.ai {
+        align-self: flex-start;
+        background: color-mix(in srgb, var(--main) 8%, #fff);
+      }
+      .mk-dim {
+        position: absolute;
+        inset: 0;
+        background: color-mix(in srgb, var(--second) 40%, transparent);
+        display: grid;
+        place-items: center;
+      }
+      .mk-dialog {
+        width: 640px;
+        background: #fff;
+        border-radius: 20px;
+        padding: 28px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.35);
+      }
+      .mk-dialog-t {
+        font-size: 27px;
+        font-weight: 700;
+      }
+      .mk-toast {
+        position: absolute;
+        right: 30px;
+        bottom: 30px;
+        padding: 14px 22px;
+        border-radius: 14px;
+        background: var(--second);
+        color: #fff;
+        font-weight: 600;
+      }
+      .mk-toast b {
+        color: var(--good);
+        margin-right: 6px;
+      }
+      #stage.paint .mk-card,
+      #stage.paint .mk-dialog,
+      #stage.paint .mk-row.solo {
+        background: transparent;
+      }
+      #stage.paint .mk-page {
+        background: var(--ground);
       }
       /* chapter / subscribe / end */
       .center {
@@ -1294,6 +1829,9 @@
     </script>
     <script>
       /*SCENES*/
+    </script>
+    <script>
+      /*SCREENS*/
     </script>
     <script>
       window.LOGO = '__LOGO__'
@@ -2183,6 +2721,19 @@
             img.src = S._src || ''
             img.alt = S.alt || ''
             if (S.caption) el('div', 'caption', box, rich(S.caption))
+          } else if (layout === 'screen' || layout === 'mock') {
+            // a product screen: a real screenshot, or a UI recreated in the look (assets/screens.js)
+            box.classList.add('scr-box')
+            heading(S.title, 60, 40)
+            const cs = getComputedStyle(stage)
+            if (window.screens)
+              window.screens.build(S, box, {
+                lang: C.lang || 'en',
+                vertical: vertical(),
+                treat: C.treat,
+                second: (T.second || cs.getPropertyValue('--second')).trim(),
+                ground: (T.ground || cs.getPropertyValue('--ground')).trim()
+              })
           } else if (layout === 'chapter') {
             box.classList.add('center')
             el('div', 'eyebrow', box, esc(S.eyebrow || ''))
@@ -2601,6 +3152,14 @@
               120
             )
             fade($('.caption'), 500)
+          } else if (layout === 'screen' || layout === 'mock') {
+            if (!cont) rise(h, 0)
+            if (window.screens) {
+              const r = window.screens.anim(S, sp, !cont)
+              A.push(...r.anims)
+              end = Math.max(end, r.end)
+            }
+            if (!cont) fade($('.scr-foot'), 700)
           } else if (layout === 'doodle') {
             // the drawing draws itself: each stroke traced, then its fill comes in
             const shapes = $$(
@@ -2965,6 +3524,8 @@
           const issues = []
           issues.push(...markIssues)
           issues.push(...flowIssues)
+          if (window.screens && stage.querySelector('.scr-view, .illus-ph'))
+            issues.push(...window.screens.issues())
           for (const { h, min } of fitTargets) {
             const box = h.closest('.box')
             if (box.scrollHeight > box.clientHeight + 2 || h.scrollWidth > h.clientWidth + 2)
@@ -2976,7 +3537,10 @@
                 'content is ' + (b.scrollHeight - b.clientHeight) + 'px too tall: cut rows/lines'
               )
           stage.querySelectorAll('img').forEach((i) => {
-            if ((i.closest('.imgwrap') || i.classList.contains('illus')) && !i.naturalWidth)
+            if (
+              (i.closest('.imgwrap') || i.closest('.scr-pic') || i.classList.contains('illus')) &&
+              !i.naturalWidth
+            )
               issues.push('image did not load')
           })
           const sr = stage.getBoundingClientRect()
