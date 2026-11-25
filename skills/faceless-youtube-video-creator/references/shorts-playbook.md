@@ -76,6 +76,36 @@ A cover is the Short's thumbnail: what sells the click on the Shorts shelf, in a
 - `longVideo`: the long video's URL; set it as the Short's **Related video** in Studio (no API sets it);
 - `cover`: `cover/cover.png`, the approved cover (below);
 - `tags`, `language`, `containsSyntheticMedia`, `madeForKids` as for the long video;
+- `instagram.caption` and `tiktok.caption`: the captions for the same MP4 on Instagram Reels and TikTok (below);
 - no chapters, no A/B thumbnails.
 
+`youtube.md` is the readable version, with an **Instagram Reels** and a **TikTok** section under the YouTube one, so each caption can be copied as it is.
+
 Publish after the long video, a few days apart, and add each Short's URL to the topic sheet row's `related_links`.
+
+## Instagram Reels and TikTok
+
+The same `out/short.mp4` and `cover/cover.png` go to Reels and TikTok, but not the YouTube description: its `#Shorts` belongs to YouTube, and its link can't be clicked in either app. Each platform gets its own caption, in the Short's language, written as the exact text to paste with the hashtags at the end.
+
+Both captions:
+
+- **Line 1 is the hook**, reworded for reading: the Short's `[HOOK]` question or claim, not the YouTube title. Reels shows about 125 characters before "more", and TikTok shows less.
+- **Search words in the text.** People search both apps the way they search Google, so put the long video's main search phrase (from the brief or the topic sheet row) in the first two lines, in plain words.
+- **No links, no `#Shorts`.** Send people to the full video by naming the YouTube channel (`@handle` from `channel/channel.md`): "Full video on YouTube: @handle".
+- **3–5 topic hashtags**: one broad (`#ai`, `#inteligenciaartificial`) and the rest niche (`#promptengineering`, `#chatgpttips`), in the Short's language (a Spanish Short can add one English hashtag). No `#fyp`, `#foryou`, `#viral` or `#parati`: they say nothing about the topic.
+- **The AI label**: when `containsSyntheticMedia` is true (an AI voice, generated pictures), turn on Instagram's "AI info" and TikTok's "AI-generated content" when you upload.
+
+**Instagram Reels** (`instagram.caption`): 2–4 short lines, ≤ 2,200 characters, **at most 5 hashtags** (Instagram's limit). Ask for a save or a send ("Save this for your next prompt", "Send this to someone who still…"): Reels weighs saves and sends more than likes.
+
+**TikTok** (`tiktok.caption`): up to 4,000 characters, but keep it to 150–300. Lead with the search-phrase sentence, then a question people can answer in a comment (comments push a TikTok further than anything else), then the hashtags.
+
+```json
+"instagram": {
+  "caption": "Why does AI give you a different answer every time?\n\nIt isn't broken: it picks every word with a roll of the dice, and you can turn that down.\n\nSave this for your next prompt. Full video on YouTube: @handle\n\n#ai #chatgpt #promptengineering #aitips #llm"
+},
+"tiktok": {
+  "caption": "Why ChatGPT gives you a different answer every time, and the one setting that fixes it.\n\nDid you get the same answer twice? 👇\n\n#ai #chatgpt #promptengineering #aitips"
+}
+```
+
+`youtube-meta.mjs` checks both: length, the hashtag count (more than 5 on Reels fails), a first line past 125 characters, links, `#Shorts` and empty hashtags.

@@ -35,7 +35,7 @@ For each video, in `videos/<date>-<slug>/`:
 - `out/video.srt` and `out/chapters.txt`: subtitles and **real** chapter times for the description.
 - `youtube.md`: three title options, the description, tags, a pinned comment and the end-screen plan.
 - `thumbs/thumb-A.png`, `thumbs/thumb-B.png`: two thumbnails that test one hypothesis, for YouTube's Test & compare. You review them before delivery, and the skill re-renders from your feedback until you approve both.
-- `shorts/<n>-<slug>/out/short.mp4` (when you ask, once the video is approved): three vertical Shorts, 30–55 s, in the same look and voice, with burned-in captions, each with its `cover/cover.png` (a 1080×1920 cover image to upload with it).
+- `shorts/<n>-<slug>/out/short.mp4` (when you ask, once the video is approved): three vertical Shorts, 30–55 s, in the same look and voice, with burned-in captions, each with its `cover/cover.png` (a 1080×1920 cover image to upload with it) and a caption for Instagram Reels and one for TikTok, hashtags included.
 - `script.md`, `brief.md`: the script (with every slide cue) and the research behind it, with sources.
 
 ## What it does
@@ -57,7 +57,7 @@ For each video, in `videos/<date>-<slug>/`:
 - **Product screens, animated like a demo**: list the screens an idea needs (a public page, your app behind a login, an image from your docs) and `capture-screens.mjs` captures them with Playwright, before and after a click, recording where each button is. On screen they sit in a browser, window or phone frame in your look, and the camera zooms into the option the voice names, spotlights it, a cursor clicks it and the real result fades in. Emails and phone numbers are blurred and your own redaction rules applied before every picture. When a real shot isn't possible, a `mock` recreates the UI in your look's style, always labelled "Recreated from …" on screen.
 - **A channel kit**: one `channel/` folder with your channel brief, logo, avatar and the description, keywords and upload defaults to paste into YouTube Studio.
 - **Upload-ready metadata**: `youtube.json` with the title, description (chapters included), tags, category and disclosure answers to paste into YouTube Studio, checked against YouTube's limits.
-- **Shorts from every video**: it proposes five moments that stand on their own, you pick three, and each is rewritten as a 30–55 s Short (hook, payoff, a line that loops) and rendered vertically with big captions, ready to link to the long video. Each Short also gets a cover image: two designs on different angles, you pick the one that ships.
+- **Shorts from every video**: it proposes five moments that stand on their own, you pick three, and each is rewritten as a 30–55 s Short (hook, payoff, a line that loops) and rendered vertically with big captions, ready to link to the long video. Each Short also gets a cover image (two designs on different angles, you pick the one that ships) and ready-to-paste captions for Instagram Reels and TikTok, written to each app's habits, with 3–5 topic hashtags.
 - **Never uploads anything.** You review and publish.
 
 ## Configuration

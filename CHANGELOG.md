@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2 (2026-11-26)
+
+Captions for Instagram Reels and TikTok.
+
+- **Every Short gets a Reels caption and a TikTok caption** next to its YouTube metadata: `instagram.caption` and `tiktok.caption` in `youtube.json`, and an Instagram Reels and a TikTok section in `youtube.md`, ready to paste with the same MP4 and cover. Each opens on the Short's hook, puts the search phrase in plain words, names your YouTube channel for the full video (no link, no `#Shorts`) and ends on 3–5 topic hashtags. Reels asks for a save or a send, and TikTok asks a question for the comments. The rules are in `references/shorts-playbook.md` › Instagram Reels and TikTok.
+- **`youtube-meta.mjs` checks them**: over 2,200 characters or more than 5 hashtags on Reels fails, and so does over 4,000 characters on TikTok. It warns on a missing caption, fewer than 3 hashtags, a first line past ~125 characters (cut off before "more"), a link, `#Shorts` and `#fyp`-style hashtags, and reminds you to turn on each app's AI label when `containsSyntheticMedia` is true.
+- Older Shorts still pass: a missing caption is only a warning.
+
 ## 0.6.1 (2026-11-25)
 
 Day or dark pictures.

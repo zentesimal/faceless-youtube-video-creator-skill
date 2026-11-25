@@ -13,7 +13,9 @@
 // A Short ($W/style.json "format": "short", or --short) is checked as one: title ≤ 70 recommended, no chapters
 // or A/B thumbnails, `cover` ("cover/cover.png": the approved 1080×1920 cover from render-thumbnails.mjs),
 // captions "out/short.srt", the description links the long video (`longVideo`: its URL, also set as the Short's
-// Related video in Studio), `#Shorts` in the title or description.
+// Related video in Studio), `#Shorts` in the title or description. It also checks the captions for the same MP4
+// on the other platforms: `instagram.caption` (Reels: ≤ 2,200 characters, ≤ 5 hashtags) and `tiktok.caption`
+// (≤ 4,000 characters), each the text to paste, with its 3–5 hashtags at the end.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
@@ -132,6 +134,50 @@ if (SHORT) {
     }
   }
 }
+// the same Short on Instagram Reels and TikTok: a caption each, ready to paste, hashtags at the end
+const social = {}
+if (SHORT) {
+  const platforms = [
+    // name, key, max characters, max hashtags (a problem above it on Reels, a warning on TikTok)
+    ['Instagram', 'instagram', 2200, 5, true],
+    ['TikTok', 'tiktok', 4000, 5, false]
+  ]
+  for (const [name, key, maxChars, maxTags, hardTagLimit] of platforms) {
+    const caption = String(d[key]?.caption || '').trim()
+    if (!caption) {
+      warnings.push(`no ${key}.caption: the ${name} caption for this Short (shorts playbook)`)
+      continue
+    }
+    const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) || []
+    social[key] = { chars: len(caption), hashtags: hashtags.length }
+    if (len(caption) > maxChars)
+      problems.push(`${key}.caption is ${len(caption)} characters (${name}'s max is ${maxChars})`)
+    if (hashtags.length > maxTags)
+      (hardTagLimit ? problems : warnings).push(
+        `${key}.caption has ${hashtags.length} hashtags (${hardTagLimit ? `${name} allows ${maxTags}` : `keep it to 3–${maxTags}`})`
+      )
+    else if (hashtags.length < 3)
+      warnings.push(`${key}.caption has ${hashtags.length} hashtags; use 3–5 topic hashtags`)
+    const firstLine = caption.split('\n')[0]
+    if (len(firstLine) > 125)
+      warnings.push(
+        `${key}.caption's first line is ${len(firstLine)} characters; past ~125 it's cut off before "more"`
+      )
+    if (/https?:\/\/|www\./i.test(caption))
+      warnings.push(
+        `${key}.caption has a link, which ${name} doesn't make clickable: name the YouTube channel instead`
+      )
+    if (hashtags.some((h) => /^#shorts$/i.test(h)))
+      warnings.push(`${key}.caption has #Shorts, which is YouTube's: take it out`)
+    const empty = hashtags.filter((h) => /^#(fyp|foryou|foryoupage|viral|parati)$/i.test(h))
+    if (empty.length)
+      warnings.push(`${key}.caption has ${empty.join(' ')}: swap for topic hashtags`)
+  }
+  if (d.containsSyntheticMedia && Object.keys(social).length)
+    warnings.push(
+      'turn on the AI label when you upload: Instagram "AI info", TikTok "AI-generated content"'
+    )
+}
 if (d.captions && !existsSync(join(W, d.captions))) warnings.push(`no subtitles at ${d.captions}`)
 if (!d.pinnedComment) warnings.push('no pinnedComment')
 
@@ -141,6 +187,11 @@ console.log(`tags        ${tags.length} (${tagChars} characters)`)
 if (SHORT) console.log(`cover       ${d.cover || '—'}`)
 else console.log(`thumbnails  ${d.thumbnails.join(', ') || '—'}`)
 if (SHORT) console.log(`long video  ${d.longVideo || '—'}`)
+if (SHORT)
+  for (const key of ['instagram', 'tiktok'])
+    console.log(
+      `${key.padEnd(11)} ${social[key] ? `${social[key].chars} characters · ${social[key].hashtags} hashtags` : '—'}`
+    )
 console.log(`subtitles   ${d.captions || '—'} (${d.language})`)
 console.log(
   `category ${d.categoryId} · made for kids: ${d.madeForKids} · altered/synthetic content: ${d.containsSyntheticMedia}`
