@@ -4,11 +4,11 @@ A calm, hand-drawn explainer: pencil and ink sketches on warm paper, one visual 
 
 ## Source
 
-| Field     | Value                                                                                                                                                                                                                                   |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reference | one frame from a hand-drawn explainer video (2026-11): a stressed person running with a toppling stack of books, diplomas and briefcases past a grey crowd                                                                              |
-| Checked   | the frame itself (palette from `moodboard.mjs`: cream `#f2e7d3`, graphite `#6a645b`–`#bfb6a7`, ink, ochre accents on the briefcases). The video, its channel and its narration were not identified: nothing here copies them            |
-| Picture   | **generated illustrations carry this look** (`illustrations: true`): the `imageStyle` in `style.json` describes it. Without them, slides fall back to vector `scene`s in the paper palette, which read as a clean cartoon, not a sketch |
+| Field     | Value                                                                                                                                                                                                                                                                                                                  |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reference | one frame from a hand-drawn explainer video (2026-11): a stressed person running with a toppling stack of books, diplomas and briefcases past a grey crowd                                                                                                                                                             |
+| Checked   | the frame itself (palette from `moodboard.mjs`: cream `#f2e7d3`, graphite `#6a645b`–`#bfb6a7`, ink, ochre accents on the briefcases). The video, its channel and its narration were not identified: nothing here copies them                                                                                           |
+| Picture   | **generated illustrations carry this look** (`illustrations: true`): the `imageStyle` in `style.json` describes it (`imageStyleDay` with day pictures: the same sketch without the dark vignette). Without them, slides fall back to vector `scene`s in the paper palette, which read as a clean cartoon, not a sketch |
 
 Reference frames live in `images/` (local only, gitignored).
 

@@ -95,14 +95,14 @@ Two kinds, both **illustrations, never proof**: they show a situation or a metap
 - **Cast** (≤ 3): `ghost` (the default mascot; `look.mascot` in the config picks the default lead), `person` (`color` = shirt, `skin`, `hair`), `robot` (the AI). Poses: `neutral` · `wave` · `talk` · `point` · `shrug` (with a ?) · `shock` · `think` (hand to chin, thought dots) · `cheer` (sparkles) · `sad`. `point`, `talk` and `wave` turn toward the middle of the frame.
 - **`say`**: a speech bubble over that figure, ≤ 8 words. The check fails if a bubble runs off the frame, covers the text or takes more than 3 lines.
 - **Layout**: one figure + `text` = text on the left, figure on the right; two or three figures + `text` (or `textAt: "top"`) = text on top. On a busy background the text sits on a plate.
-- **Backgrounds**: `plain` (just a floor), `desk` (room with window and shelf), `office` (windows and a whiteboard chart), `city`, `night` (dark), `hills`, `stage` (dark, spotlight), `space` (dark). Or a generated one: `"bg": {"prompt": "a quiet library at dusk"}` (characters are drawn on top; set `"dark": true` for a dark picture).
+- **Backgrounds**: `plain` (just a floor), `desk` (room with window and shelf), `office` (windows and a whiteboard chart), `city`, `night` (dark), `hills`, `stage` (dark, spotlight), `space` (dark). Or a generated one: `"bg": {"prompt": "a quiet, sunlit library"}` (characters are drawn on top; set `"dark": true` for a dark picture). In `"imageMode": "day"` (SKILL.md §1b) pick the day backgrounds (`plain`, `desk`, `office`, `hills`, `dawn`, `sea`) and keep `night`, `stage`, `space` and `aurora` for the one moment where the dark is the point (the low point, a quiet night scene).
 - Use: the hook's everyday moment ("you ask the AI to fix one thing…": a person `shrug`, the robot `think`), an analogy, the catch (`shock`, `sad`), a win (`cheer`), the subscribe lead-in (the ghost `wave`). About one slide in five; never two scenes in a row with the same background and cast.
 
 ```markdown
 > SLIDE {"layout":"scene","bg":"office","cast":[{"who":"person","pose":"shrug","say":"Why did it do that?"},"robot:think"],"props":["server"]}
 ```
 
-**`illustration`** (only when the user chose generated illustrations in §1b): `scripts/gen-images.mjs` sends the cue's `prompt` with the look's image style (`style.mjs` › `imageStyle`; the config's `look.imageStyle`, a preset or `$W/style.json` can set its own) to the OpenAI Image API (model = the config's `models.image`, 1536×864; key = `OPENAI_API_KEY`). Write the prompt as a scene ("the ghost mascot sorting a mountain of support tickets into three neat piles"), never with words to render: the slide adds the text. Until the picture exists, `--slides` shows a placeholder and the full render exits 2. Use it for the two or three moments that deserve a richer picture (the hook, the big turn), not as wallpaper; in Story teller mode, every sentence gets one (below).
+**`illustration`** (only when the user chose generated illustrations in §1b): `scripts/gen-images.mjs` sends the cue's `prompt` with the look's image style (`style.mjs` › `imageStyle`; the config's `look.imageStyle`, a preset or `$W/style.json` can set its own) to the OpenAI Image API (model = the config's `models.image`, 1536×864; key = `OPENAI_API_KEY`). Write the prompt as a scene ("the ghost mascot sorting a mountain of support tickets into three neat piles"), never with words to render: the slide adds the text. Match `imageMode`: in `day`, set the scene in daylight or a well-lit room on a light background (the generator adds a light-lighting line too), and save night for a line that is about the night. Until the picture exists, `--slides` shows a placeholder and the full render exits 2. Use it for the two or three moments that deserve a richer picture (the hook, the big turn), not as wallpaper; in Story teller mode, every sentence gets one (below).
 
 ## Product screens (`screen`, `mock`)
 
@@ -206,11 +206,11 @@ Flip it, and every refund waits for a person.
 ```markdown
 ## [HOOK]
 
-> SLIDE {"layout":"illustration","prompt":"{Maya} at her kitchen table at 2 a.m., lit only by her laptop, a cold cup of coffee beside her"}
+> SLIDE {"layout":"illustration","prompt":"{Maya} at her desk on a bright Monday morning, sunlight through tall windows, buried under sticky notes, a cold cup of coffee beside her"}
 
-At two in the morning, Maya was still answering tickets.
+Monday morning, and Maya was already forty tickets behind.
 
-> SLIDE {"layout":"illustration","prompt":"close-up of a tall stack of paper envelopes in the laptop's glow, each stamped with the same question mark"}
+> SLIDE {"layout":"illustration","prompt":"close-up of a tall stack of paper envelopes on a sunlit desk, each stamped with the same question mark"}
 
 Forty-three of them, all asking the same question.
 
@@ -218,7 +218,7 @@ Forty-three of them, all asking the same question.
 ```
 
 - **One sentence, one line, one picture.** Every spoken line is a single sentence, and every line has its own `illustration` cue right above it. `script-stats.mjs` and the renderer stop on a line with two sentences or a picture with two lines (`storyteller.mjs` splits sentences on `.` `?` `!` `…` before a capital, skipping abbreviations and initials). The subscribe and end slides are exempt.
-- **The prompt draws the sentence**: what the voice says, as a concrete shot (who, doing what, where, the light, the mood). An abstract sentence gets its metaphor ("trust breaks quietly" → a glass bridge with one hairline crack). Never words in the picture: the voice says them. How to write for it: script playbook › Writing for Story teller.
+- **The prompt draws the sentence**: what the voice says, as a concrete shot (who, doing what, where, the light, the mood). The light follows `imageMode`: in `day`, daylight and light backgrounds, with night only when the sentence is about the night; in `dark`, any light the story wants. An abstract sentence gets its metaphor ("trust breaks quietly" → a glass bridge with one hairline crack). Never words in the picture: the voice says them. How to write for it: script playbook › Writing for Story teller.
 - **Recurring characters.** Describe each recurring person, animal, place or object once in `style.json`, and name it in a prompt as `{Maya}` or `{the office}`:
 
   ```json
@@ -264,7 +264,7 @@ The animated-explainer look (`illustrated-explainer` preset, but any look can us
 **Layered illustrations (generated).** `layers` replaces `prompt`: the first is the backdrop (sky, distant scenery, ground plane; generated opaque), the others cut-outs on a transparent background (a foreground rock, a midground island), each with a `depth` from 0 (far) to 1 (near; default: spread evenly) and an optional `blur` in px for a foreground out of focus. **Cut-outs come back centred in their frame, whatever the prompt asks**: place each one with `x`, `y` (where its centre goes in the 1920×1080 frame) and `scale` (its size; 1 = as generated), e.g. `{"prompt": "…", "depth": 1, "x": 1300, "y": 600, "scale": 0.7}`, then put the ring on that spot and the cast on the empty side. Look at the slide (`--slides`) before trusting a ring. `gen-images.mjs` makes one picture per layer (each billed). `src` works per layer too. Put characters in with `cast` (as on a `scene`), not in a prompt: drawn by the renderer, the mascot is the same in every shot and acts out its pose.
 
 ```markdown
-> SLIDE {"layout":"illustration","layers":[{"prompt":"a polar sea at dusk under a violet sky, distant icebergs","depth":0},{"prompt":"a tall snowy island in the middle distance","depth":0.5},{"prompt":"dark foreground rocks in the lower corners","depth":1,"blur":3}],"cast":["ghost:point"],"marks":[{"ring":[960,470],"r":150}],"camera":{"to":[960,470],"zoom":1.25},"fx":"snow"}
+> SLIDE {"layout":"illustration","layers":[{"prompt":"a polar sea on a clear morning under a pale blue sky, distant icebergs","depth":0},{"prompt":"a tall snowy island in the middle distance","depth":0.5},{"prompt":"snowy foreground ice in the lower corners","depth":1,"blur":3}],"cast":["ghost:point"],"marks":[{"ring":[960,470],"r":150}],"camera":{"to":[960,470],"zoom":1.25},"fx":"snow"}
 ```
 
 **`camera`** (needs animations): one slow move over the whole slide; near layers move more than far ones.

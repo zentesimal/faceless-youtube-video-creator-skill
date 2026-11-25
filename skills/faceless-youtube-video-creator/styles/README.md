@@ -4,7 +4,7 @@ One folder per look. Each one names **where its imagery comes from** and how the
 
 ```
 styles/<name>/
-├── style.json   # the preset: style ("brand" | "story"), theme, and optional defaults (pace, gap, sectionGap, maxPause, animate, camera, imageStyle)
+├── style.json   # the preset: style ("brand" | "story"), theme, and optional defaults (pace, gap, sectionGap, maxPause, animate, camera, imageStyle, imageStyleDay)
 ├── style.md     # imagery source, narration rules, slide rules, what to avoid
 ├── preview.png  # six sample slides in this look (headline, scene, doc, number, table, dark punch)
 └── images/      # optional reference images for the moodboard (keep them local: don't commit other people's work)
@@ -36,7 +36,7 @@ Working from a clone of the repo, name your own looks `my-<name>` (e.g. `styles/
 
 1. `mkdir styles/<name>/images` and drop 6–12 reference frames or images in `images/` (screenshots you took, your own art, licensed stock). They stay local.
 2. Run the moodboard: `node ${CLAUDE_SKILL_DIR}/scripts/moodboard.mjs styles/<name>/images --out styles/<name>`. Read `moodboard-sheet.png` and the images.
-3. Write `style.json` (optionally `theme.paper` for an exact slide background, otherwise the ground is tinted toward `main`; optionally an `imageStyle`: one paragraph describing the look for generated illustrations; without it one is built from the theme colours) (theme roles as in SKILL.md §1b: `ground`, `second` ≥ 4.5:1 on ground, `main` ≥ 3:1, `accent`) and `style.md` (source, mood, palette roles, type, texture, narration rules, slide rules, avoid list).
+3. Write `style.json` (optionally `theme.paper` for an exact slide background, otherwise the ground is tinted toward `main`; optionally an `imageStyle`: one paragraph describing the look for generated illustrations; optionally an `imageStyleDay`, the same look in bright daylight on light backgrounds, used when the video picks day pictures (`"imageMode": "day"`), and needed when `imageStyle` is built on night or dark colours; without it one is built from the theme colours) (theme roles as in SKILL.md §1b: `ground`, `second` ≥ 4.5:1 on ground, `main` ≥ 3:1, `accent`) and `style.md` (source, mood, palette roles, type, texture, narration rules, slide rules, avoid list).
 4. From a YouTube video you admire: describe its devices in your own words (structure, pacing, how it uses pictures); if a transcript tool is connected, read the transcript for the narration. Take frames yourself for the palette. Record only what you could check, and never copy its words.
 
 Rules:

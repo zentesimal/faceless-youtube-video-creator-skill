@@ -40,6 +40,7 @@ Turns "make a YouTube video about X" (or "…from this CSV") into a finished, up
 | Pace               | **asked in §1b**: 1–5 (2 = still slides, cuts; 5 = a visual every few seconds, motion, crossfades)                                                                                                                                                                                                                                                                                                                         |
 | Free or paid       | **asked first in §1b**: free and local (Kokoro voice, vector scenes), OpenAI (a voice that acts the tones, generated illustrations), or an ElevenLabs voice (the most natural, acts the tones with audio tags) with or without OpenAI illustrations; `providers.mjs` says which keys are there and whether they work; saved as `voice` and `illustrations`                                                                 |
 | Mode               | **asked in §1b, with free or paid**: `slides` (the default: the key line, lists, diagrams and proof on slides) or `storyteller` (Story teller: a generated illustration for every sentence, about 100–250 pictures for 8–20 min; needs generated illustrations); saved as `mode`                                                                                                                                           |
+| Pictures           | **asked in §1b, with free or paid**: `day` (light backgrounds and daylight scenes; the look's `imageStyleDay` when it has one) or `dark` (the look as it is, night and moody light allowed); saved as `imageMode`                                                                                                                                                                                                          |
 | Voice              | **asked in §1b**, with samples in the video's language: free Kokoro `af_heart` · `af_bella` · `am_michael` (Spanish: `ef_dora` · `em_alex`), or OpenAI `openai:coral` · `openai:sage` · `openai:onyx` (any language) when §1b's first answer includes the OpenAI voice, or 3 narrators from the user's ElevenLabs library (`elevenlabs:<voice id>`, model `eleven_v4`) when it's ElevenLabs; speed 0.92 (cloud voices 1.1) |
 | Extras             | **asked in §1b**: animations "when suitable" (recommended) or still slides                                                                                                                                                                                                                                                                                                                                                 |
 | Product screens    | optional, when an idea's proof is a product or a page (§3, §5a): real screenshots captured by `capture-screens.mjs` (public pages, logged-in apps with a saved session, images from docs, your own files) on `screen` slides that zoom, spotlight, click and show the real after-state; or a `mock` (UI recreated in the look, always labelled, never proof)                                                               |
@@ -72,7 +73,7 @@ Read before writing:
 - [ ] 0. First run only: setup (config + channel kit + dependencies)
 - [ ] 1. Read the channel brief
 - [ ] 1a. Ask the viewer's level (0–5, or the developer audience) first; then topic (typed or from the topic sheet), length (8–20 min, recommended from the level), language (English / Spanish), and whether to research first
-- [ ] 1b. Setup: ask free or paid (OpenAI / ElevenLabs) + mode (slides or Story teller) → voice samples → ask look, pace (not in Story teller), voice, animations → style.json (+ moodboard for the story look)
+- [ ] 1b. Setup: ask free or paid (OpenAI / ElevenLabs) + mode (slides or Story teller) + pictures (day or dark) → voice samples → ask look, pace (not in Story teller), voice, animations → style.json (+ moodboard for the story look)
 - [ ] 2. Topic: the picked row or typed topic; or profile a CSV, cluster, score, let the user pick
 - [ ] 2b. Research (if chosen): sources → research.md with a numbered source list → the user approves
 - [ ] 3. Brief: promise, viewer, ideas for the length with proof, facts to verify
@@ -121,7 +122,7 @@ Read the project's `channel/channel.md` (`paths.channel`; an older `./channel.md
 
 ### 1a. Who and what: viewer level, topic, length
 
-**The setup questions are not optional.** Every time a video is requested, ask §1a (viewer level, then topic, length, research, language) and §1b (free or paid, then look from `styles/`, pace, voice, animations) before any research, brief or script, and save every answer in `$W/style.json`. Skip a single question only when the request already answers it (say which answer you took from the request, in one line), or when the user says "same as last time" (copy the last video's `style.json` and say what it holds). Never fill an answer with a default without asking: `script-stats.mjs` fails a script whose `style.json` has no `level`, `language`, `minutes`, look (`preset` or `style`), `pace`, `voice` or `illustrations` (for "I'll record it myself", write `"format": "presenter"`: pace, look and voice aren't needed).
+**The setup questions are not optional.** Every time a video is requested, ask §1a (viewer level, then topic, length, research, language) and §1b (free or paid, mode and day or dark pictures, then look from `styles/`, pace, voice, animations) before any research, brief or script, and save every answer in `$W/style.json`. Skip a single question only when the request already answers it (say which answer you took from the request, in one line), or when the user says "same as last time" (copy the last video's `style.json` and say what it holds). Never fill an answer with a default without asking: `script-stats.mjs` fails a script whose `style.json` has no `level`, `language`, `minutes`, look (`preset` or `style`), `pace`, `voice` or `illustrations` (for "I'll record it myself", write `"format": "presenter"`: pace, look and voice aren't needed).
 
 **First, before any other question and before any work, ask the viewer's level**: one `AskUserQuestion` with one question, "How technical is the viewer this video is for?" (0–5; the levels, and what each changes, are in the script playbook › Viewer level). Everything after it depends on the answer: the length to recommend, the words the script may use, how much it explains, the proof it shows, the titles. Skip it only when the request already says ("for complete beginners" = 0–1, "for people who use ChatGPT at work" = 2, "for developers" or "for indie hackers" = 4 with the developer audience, "level 3").
 
@@ -153,7 +154,7 @@ Save it as `"level"` in `$W/style.json` (plus `"audience": "developer"` for the 
 
 Keep the answers for §1b: the level goes into `$W/style.json` as `"level"`, the length into `$W/style.json` as `"minutes"` (the config's `video.minutes` is the default to recommend), the research answer as `"research": true | false` and the language as `"language": "en" | "es"`, the topic into the folder's slug.
 
-### 1b. Setup: free or paid, mode, look, pace, voice
+### 1b. Setup: free or paid, mode, pictures, look, pace, voice
 
 Make the folder first (`mkdir -p <workspace>/$(date +%F)-<slug>/thumbs`; a working slug is fine, rename later).
 
@@ -188,6 +189,13 @@ In each description, say what it changes for the look the topic suggests (`sketc
 - `Story teller`: **a generated illustration for every sentence**, so the picture follows the voice like a picture book read aloud: a camera move on each picture and a dissolve between them (video playbook › Story teller mode). About one picture per sentence: roughly 100 for 8 minutes, 150 for 12, 250 for 20, each billed by OpenAI (medium quality by default; `gen-images.mjs --dry-run` gives the exact count before anything is billed), generated 4 at a time. Suits stories, history, a case told as a narrative, a "how it happened"; less suited to data-heavy or step-by-step tutorials.
 
 Story teller needs generated illustrations: without a working OpenAI key, mark it "won't work until the key works" (or the user brings their own pictures as `src`). If they pick Story teller with `Free · local` or `OpenAI voice only`, switch the pictures on (`Illustrations only` or `OpenAI voice + illustrations`) and say so in one line. Save `"mode": "storyteller"` (with `"illustrations": true`) or `"mode": "slides"`.
+
+**Pictures, in the same `AskUserQuestion`** (a third question): "Day or dark pictures?". Skip it when the request already says ("light", "bright", "daytime", "dark", "night", "claro", "de día", "oscuro") and say which you took. Options, the config's `look.imageMode` first when it has one, else `Day` first:
+
+- `Day (recommended)`: light backgrounds and daylight scenes. Every generated picture asks for bright, high-key light (night only where a line is about the night), and a look with a day variant uses it (`imageStyleDay`: `illustrated-explainer` in pale sky blues instead of indigo night, `sketch-explainer` without the dark vignette). Vector `scene` slides favour the day backgrounds (`plain`, `desk`, `office`, `hills`, `dawn`, `sea`).
+- `Dark (current)`: the look as it is, the way videos looked before this option: dusk, night and moody light are fine, and `night`, `aurora`, `stage` and `space` backgrounds are used freely.
+
+Save `"imageMode": "day"` or `"imageMode": "dark"`. With no `imageMode`, a workspace is `dark`, so videos made before this option keep their pictures.
 
 Then generate the voice samples for that answer (cached across videos; the first Kokoro run sets it up, ~120 MB):
 
@@ -248,7 +256,8 @@ Write `$W/style.json` with the preset and the answers (anything else comes from 
   "pace": 3,
   "voice": "af_heart",
   "animate": "auto",
-  "illustrations": false
+  "illustrations": false,
+  "imageMode": "day"
 }
 ```
 
@@ -413,7 +422,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/gen-images.mjs $W --dry-run   # what would be g
 node ${CLAUDE_SKILL_DIR}/scripts/gen-images.mjs $W             # generate the missing ones (billed)
 ```
 
-Tell the user how many pictures it will generate before the real run (a `layers` illustration counts one per layer; cut-out layers come back on a transparent background). They land in `$W/assets/gen/` (named by a hash of prompt + look, so the renderer finds them and an edited prompt makes a new one). `Read` each: right subject, no text, no fake screens, fits the look. Regenerate one with `--force --only <hash>`. If the key or the network is missing, say so and swap those cues for `scene` slides rather than waiting. **In Story teller mode** that's 100–250 pictures: show the user the count and the 3 sample prompts from `--dry-run` and wait for their go-ahead before the real run. It generates 4 at a time (`--jobs`), at `medium` quality unless `style.json` `"imageQuality"` says otherwise; a re-run only generates what's missing, so an interrupted run resumes. Check them on the contact sheet (`render-video.mjs $W --slides` → `video/sheet.png`) rather than one by one: the same characters from picture to picture, the right subject, no text; `Read` the odd ones at full size and regenerate them with `--force --only <hash>`. To change how a character looks everywhere, edit its `characters` description (every picture that names it is generated again: say how many first).
+Tell the user how many pictures it will generate before the real run (a `layers` illustration counts one per layer; cut-out layers come back on a transparent background). They land in `$W/assets/gen/` (named by a hash of prompt + look, so the renderer finds them and an edited prompt makes a new one). `Read` each: right subject, no text, no fake screens, fits the look, and matches `imageMode` (in `day`, a dark or night picture is regenerated unless its line is about the night). Regenerate one with `--force --only <hash>`. If the key or the network is missing, say so and swap those cues for `scene` slides rather than waiting. **In Story teller mode** that's 100–250 pictures: show the user the count and the 3 sample prompts from `--dry-run` and wait for their go-ahead before the real run. It generates 4 at a time (`--jobs`), at `medium` quality unless `style.json` `"imageQuality"` says otherwise; a re-run only generates what's missing, so an interrupted run resumes. Check them on the contact sheet (`render-video.mjs $W --slides` → `video/sheet.png`) rather than one by one: the same characters from picture to picture, the right subject, no text, light pictures in `day` mode; `Read` the odd ones at full size and regenerate them with `--force --only <hash>`. To change how a character looks everywhere, edit its `characters` description (every picture that names it is generated again: say how many first).
 
 ```bash
 node ${CLAUDE_SKILL_DIR}/scripts/render-video.mjs $W --slides   # slides + sheet, ~10 s

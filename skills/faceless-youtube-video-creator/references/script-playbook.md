@@ -185,8 +185,9 @@ A Story teller video draws **one picture per sentence** (video playbook › Stor
 - **Sentences you can picture.** A subject doing something somewhere: "The bot answered in under a second" draws; "this has implications for efficiency" doesn't, so say what the viewer would see ("Maya closed eleven tickets before her coffee went cold"). An abstract idea gets a concrete metaphor, said and drawn.
 - **One sentence per line, 6–20 words** (about 2–7 s of voice). Vary the length: a short one lands a beat ("It wasn't."), a longer one carries a scene. Past about 30 words the picture stays up too long: split it.
 - **One thread.** Keep the same people and places through an idea, named in prompts as `{Name}` and described once in `style.json` `"characters"`: the pictures then read as one story, not a slideshow of strangers. No real people, brands or logos in a prompt.
-- **Shots like a storyboard.** Open a scene wide (where we are), go closer for the detail and the feeling (a face, a hand on the mouse, the glow of a screen), pull back for the turn. Don't repeat the same framing three pictures in a row, and don't redraw the previous picture with one change unless that change is the point.
+- **Shots like a storyboard.** Open a scene wide (where we are), go closer for the detail and the feeling (a face lighting up, a hand on the mouse), pull back for the turn. Don't repeat the same framing three pictures in a row, and don't redraw the previous picture with one change unless that change is the point.
 - **Prompts in English** (the house image style is English), whatever the video's language; the voice and any slide text stay in the video's language.
+- **Light follows the mode.** With `"imageMode": "day"`, sentences set in daytime and well-lit places draw best; a run of night scenes makes the whole video feel heavy, so keep night for the one scene that needs it.
 - **Proof stays proof.** Numbers, real outputs and documents still go on `number`, `table`, `doc` or `chat` slides; a picture illustrates, it never proves.
 
 ## `script.md` format (what the checker reads)

@@ -25,7 +25,8 @@
     "texture": "dots",
     "logo": null,
     "mascot": "ghost",
-    "imageStyle": null
+    "imageStyle": null,
+    "imageMode": null
   },
   "video": {
     "minutes": 15,

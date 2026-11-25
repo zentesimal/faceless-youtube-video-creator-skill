@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1 (2026-11-25)
+
+Day or dark pictures.
+
+- **Setup asks "Day or dark pictures?"** next to free or paid and the mode. It is saved as `"imageMode"` in `style.json`, and the config's `look.imageMode` sets the default. **Day** (recommended) adds a lighting line to every generated picture: bright, high-key light, daylight or well-lit rooms, light backgrounds, and night only when the scene asks for it. Vector `scene` slides favour the day backgrounds. **Dark** is the look as it was before this option.
+- **Day variants of the looks**: a preset can set `imageStyleDay`, which replaces its `imageStyle` in day mode. `illustrated-explainer` gets pale sky blues instead of indigo night, and `sketch-explainer` loses its dark vignette. `presets.mjs` shows which looks have a day variant.
+- The example prompts in the playbooks are now daytime scenes (they used to be 2 a.m. and dusk scenes, which pulled every video dark), and the prompt advice says the light follows `imageMode`.
+- Nothing is generated again: a workspace with no `imageMode` is `dark`, and its prompts are byte-for-byte the same as before.
+
 ## 0.6.0 (2026-11-24)
 
 Product screens, animated like a demo.

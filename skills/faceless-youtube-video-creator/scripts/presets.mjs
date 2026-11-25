@@ -43,6 +43,7 @@ const presets = readdirSync(styles, { withFileTypes: true })
       branding: json.style === 'story' ? 'none' : 'channel brand',
       pace: json.pace ?? null,
       animate: json.animate ?? null,
+      dayVariant: Boolean(json.imageStyleDay),
       illustrations: illustrated
         ? 'carry the look (recommended)'
         : json.imageStyle
@@ -63,7 +64,7 @@ else {
     console.log(
       `${p.name}  ·  ${p.title}${p.provisional ? ' (provisional)' : ''}\n` +
         `  ${p.summary}\n` +
-        `  branding: ${p.branding} · default pace: ${p.pace ?? '—'} · generated illustrations: ${p.illustrations}\n` +
+        `  branding: ${p.branding} · default pace: ${p.pace ?? '—'} · generated illustrations: ${p.illustrations}${p.dayVariant ? ' (day variant for day pictures)' : ''}\n` +
         `  preview: ${p.preview || '(none: render one, styles/README.md)'}\n`
     )
 }

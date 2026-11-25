@@ -28,7 +28,7 @@ The preset turns on `"camera": "auto"`: every `illustration`, and every `scene` 
 ## Slides
 
 - Pace 4 (the default here) or 5. About two slides in three are `scene` or `illustration`; the rest are `word`, `statement`, `number` and the proof slides (`doc`, `table`, `chat`, `image`), which stay real artifacts.
-- Vary the world: never the same background twice in a row; alternate day (`dawn`, `sea`) and night (`aurora`). Give each its particles: `snow` or `stars` at night, `dust` or `bokeh` at dawn, `sparkle` on a win.
+- Vary the world: never the same background twice in a row. In `"imageMode": "day"` (generated pictures use the preset's `imageStyleDay`, pale sky blues instead of indigo night), stay mostly in day (`dawn`, `sea`) and use the `aurora` night only as the occasional contrast (the low point, a quiet moment); in `dark`, alternate day and night. Give each its particles: `snow` or `stars` at night, `dust` or `bokeh` at dawn, `sparkle` on a win.
 - `marks` carry the information a list would: a `pin` per item (≤ 4, with a 1–3 word `label`), one `path` for a journey or a flow, a `ring` on the thing to look at, an `arrow` from cause to effect. Keep them clear of the cast and of the text.
 - When the items lead into each other, use a `flow` instead (over a world with `bg`, so it stays in the picture): `cycle` for a loop, `hub` for a concept and its parts, `auto` for a process; `reveal: "build"` to grow it with the voice.
 - Steer the camera on purpose at least once per idea: `{"to": [x, y], "zoom": 1.25}` pushes into the pin or ring the voice is talking about; `pan-right` follows a path.

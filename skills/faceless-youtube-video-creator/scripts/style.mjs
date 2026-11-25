@@ -6,7 +6,8 @@
 //   { "preset": "<folder in ../styles/>", "pace": 1-5, "voice": "af_heart", "animate": "auto" | "off",
 //     "illustrations": false, "style": "brand" | "story", "inspiration": "/abs/folder",
 //     "theme": { "ground", "main", "second", "accent": "#hex", "display", "body", "fontFiles": {…},
-//                "texture": "dots" | "grain" | "paint" | "none", "paper": "#hex" }, "imageStyle": "…", "gap", "sectionGap", "maxPause",
+//                "texture": "dots" | "grain" | "paint" | "none", "paper": "#hex" }, "imageStyle": "…",
+//     "imageMode": "day" | "dark" (generated pictures: light and daytime, or the look as it is; default dark), "gap", "sectionGap", "maxPause",
 //     "camera": "auto" | "off" | a move name (camera with parallax on scene and illustration slides; render-video.mjs),
 //     "mode": "slides" | "storyteller" (a generated illustration per sentence; storyteller.mjs),
 //     "characters": { "Maya": "…" } (recurring people, places or objects a prompt names as {Maya}),
@@ -44,7 +45,8 @@ export const DEFAULTS = {
     texture: 'dots',
     logo: null,
     mascot: 'ghost',
-    imageStyle: null
+    imageStyle: null,
+    imageMode: null
   },
   video: {
     minutes: 15,
@@ -207,6 +209,7 @@ export function loadStyle(W) {
   return {
     ...s,
     imageStyle: s.imageStyle || L.imageStyle || null,
+    imageMode: s.imageMode || L.imageMode || 'dark',
     style: story ? 'story' : 'brand',
     story,
     brand: !story,
@@ -223,6 +226,12 @@ export function loadStyle(W) {
 // real product screen.
 const NO_TEXT =
   'No text, letters, numbers, logos, watermarks or user-interface screenshots anywhere in the image.'
+// "imageMode": "day" (asked in setup) adds this line and swaps in the look's "imageStyleDay" when it has one.
+// "dark" (the default when unset) is the original look: the prompt stays the same, so no picture regenerates.
+const DAY =
+  "Bright, airy, high-key lighting: daylight or well-lit interiors, light backgrounds (white, cream, pale pastels or the look's light ground), soft shadows. " +
+  'No dark, night-time, low-key or moody scenes unless the scene explicitly asks for night or darkness.'
+export const dayMode = (style) => style.imageMode === 'day'
 export const IMAGE_STYLES = {
   paint:
     'Crude MS Paint-style drawing on a white canvas: thick wobbly black outlines, flat bright Paint colours (red #ED1C24, yellow #FFF200, blue #00A2E8, green #22B14C, indigo #3F48CC), ' +
@@ -236,6 +245,7 @@ const MASCOT = {
   person: 'a friendly simple cartoon person with a round head and plain clothes'
 }
 export function imageStyle(style) {
+  if (dayMode(style) && style.imageStyleDay) return style.imageStyleDay
   if (style.imageStyle) return style.imageStyle
   if (style.theme.texture === 'paint') return IMAGE_STYLES.paint
   const t = style.theme
@@ -267,6 +277,7 @@ export function imagePrompt(prompt, style, kind = 'illustration') {
     'Scene: ' + text.trim(),
     ...(used ? [CONTINUITY] : []),
     FRAMING[kind] || FRAMING.illustration,
+    ...(dayMode(style) ? [DAY] : []),
     NO_TEXT
   ].join('\n\n')
 }
