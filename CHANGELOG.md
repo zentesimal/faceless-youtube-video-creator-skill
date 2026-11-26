@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.3 (2026-11-26)
+
+The AI label on Reels and TikTok, apart from YouTube's.
+
+- **`instagram.aiLabel` and `tiktok.aiLabel`** in a Short's `youtube.json` say whether to turn on Instagram's "AI info" and TikTok's "AI-generated content" label. They're `true` for an AI voiceover (every Short the skill renders): Meta requires its label on realistic-sounding AI audio, and TikTok asks for it. YouTube's `containsSyntheticMedia` stays its own answer, so an AI voice reading slides still doesn't need YouTube's disclosure.
+- **`youtube-meta.mjs`** warns when a Short with an AI voice has no `aiLabel`, fails `instagram.aiLabel: false` on one, and reminds you which labels to turn on. The upload reminder no longer depends on `containsSyntheticMedia`.
+
 ## 0.6.2 (2026-11-26)
 
 Captions for Instagram Reels and TikTok.

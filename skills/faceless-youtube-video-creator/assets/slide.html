@@ -1870,6 +1870,10 @@
         let A = [] // Web Animations of the slide on screen (window.anim)
         let ticks = [] // per-frame callbacks (count-ups)
 
+        // a highlight's 0.06em side padding pokes past the heading when it ends (or starts) the widest
+        // line; that sliver isn't overflow, so the width checks allow it
+        const hlSlack = (h) =>
+          h.querySelector('.hl') ? Math.ceil(parseFloat(h.style.fontSize) * 0.12) : 0
         // shrink a heading until its box stops overflowing
         const fit = (h, start, min) => {
           let s = start
@@ -1878,7 +1882,8 @@
           const box = h.closest('.box')
           while (
             s > min &&
-            (box.scrollHeight > box.clientHeight + 1 || h.scrollWidth > h.clientWidth + 1)
+            (box.scrollHeight > box.clientHeight + 1 ||
+              h.scrollWidth > h.clientWidth + 1 + hlSlack(h))
           ) {
             s -= 4
             h.style.fontSize = s + 'px'
@@ -3528,7 +3533,10 @@
             issues.push(...window.screens.issues())
           for (const { h, min } of fitTargets) {
             const box = h.closest('.box')
-            if (box.scrollHeight > box.clientHeight + 2 || h.scrollWidth > h.clientWidth + 2)
+            if (
+              box.scrollHeight > box.clientHeight + 2 ||
+              h.scrollWidth > h.clientWidth + 2 + hlSlack(h)
+            )
               issues.push('text does not fit even at ' + min + 'px: shorten it')
           }
           for (const b of mustFit)

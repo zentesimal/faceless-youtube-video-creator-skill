@@ -15,7 +15,9 @@
 // captions "out/short.srt", the description links the long video (`longVideo`: its URL, also set as the Short's
 // Related video in Studio), `#Shorts` in the title or description. It also checks the captions for the same MP4
 // on the other platforms: `instagram.caption` (Reels: ≤ 2,200 characters, ≤ 5 hashtags) and `tiktok.caption`
-// (≤ 4,000 characters), each the text to paste, with its 3–5 hashtags at the end.
+// (≤ 4,000 characters), each the text to paste, with its 3–5 hashtags at the end, and `instagram.aiLabel` /
+// `tiktok.aiLabel`: that app's AI label, separate from YouTube's `containsSyntheticMedia`. Meta requires it on
+// realistic-sounding AI audio, so an AI voiceover (style.json `voice`) with `instagram.aiLabel: false` fails.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
@@ -137,19 +139,35 @@ if (SHORT) {
 // the same Short on Instagram Reels and TikTok: a caption each, ready to paste, hashtags at the end
 const social = {}
 if (SHORT) {
+  // AI-made by these apps' rules: an AI voiceover (any Short but a presenter's), or what YouTube's disclosure covers
+  const aiMade =
+    Boolean(styleJson.voice && styleJson.format !== 'presenter') ||
+    d.containsSyntheticMedia === true
   const platforms = [
-    // name, key, max characters, max hashtags (a problem above it on Reels, a warning on TikTok)
-    ['Instagram', 'instagram', 2200, 5, true],
-    ['TikTok', 'tiktok', 4000, 5, false]
+    // name, key, max characters, max hashtags (a problem above it on Reels, a warning on TikTok),
+    // the AI label's name in the app, whether a missing label on AI-made content is a problem (Meta requires it)
+    ['Instagram', 'instagram', 2200, 5, true, 'AI info', true],
+    ['TikTok', 'tiktok', 4000, 5, false, 'AI-generated content', false]
   ]
-  for (const [name, key, maxChars, maxTags, hardTagLimit] of platforms) {
+  const labels = []
+  for (const [name, key, maxChars, maxTags, hardTagLimit, labelName, labelRequired] of platforms) {
     const caption = String(d[key]?.caption || '').trim()
     if (!caption) {
       warnings.push(`no ${key}.caption: the ${name} caption for this Short (shorts playbook)`)
       continue
     }
     const hashtags = caption.match(/#[\p{L}\p{N}_]+/gu) || []
-    social[key] = { chars: len(caption), hashtags: hashtags.length }
+    const aiLabel = d[key].aiLabel
+    social[key] = { chars: len(caption), hashtags: hashtags.length, aiLabel }
+    if (aiLabel !== undefined && typeof aiLabel !== 'boolean')
+      problems.push(`${key}.aiLabel must be true or false`)
+    else if (aiLabel === true) labels.push(`${name} "${labelName}"`)
+    else if (aiMade)
+      (labelRequired && aiLabel === false ? problems : warnings).push(
+        aiLabel === undefined
+          ? `no ${key}.aiLabel: this Short has an AI voice, so set it to true (${name}'s "${labelName}")`
+          : `${key}.aiLabel is false, but this Short has an AI voice: ${name} ${labelRequired ? 'requires' : 'asks for'} its "${labelName}" label`
+      )
     if (len(caption) > maxChars)
       problems.push(`${key}.caption is ${len(caption)} characters (${name}'s max is ${maxChars})`)
     if (hashtags.length > maxTags)
@@ -173,10 +191,7 @@ if (SHORT) {
     if (empty.length)
       warnings.push(`${key}.caption has ${empty.join(' ')}: swap for topic hashtags`)
   }
-  if (d.containsSyntheticMedia && Object.keys(social).length)
-    warnings.push(
-      'turn on the AI label when you upload: Instagram "AI info", TikTok "AI-generated content"'
-    )
+  if (labels.length) warnings.push(`turn on the AI label when you upload: ${labels.join(', ')}`)
 }
 if (d.captions && !existsSync(join(W, d.captions))) warnings.push(`no subtitles at ${d.captions}`)
 if (!d.pinnedComment) warnings.push('no pinnedComment')
@@ -190,7 +205,7 @@ if (SHORT) console.log(`long video  ${d.longVideo || '—'}`)
 if (SHORT)
   for (const key of ['instagram', 'tiktok'])
     console.log(
-      `${key.padEnd(11)} ${social[key] ? `${social[key].chars} characters · ${social[key].hashtags} hashtags` : '—'}`
+      `${key.padEnd(11)} ${social[key] ? `${social[key].chars} characters · ${social[key].hashtags} hashtags · AI label: ${social[key].aiLabel ?? '—'}` : '—'}`
     )
 console.log(`subtitles   ${d.captions || '—'} (${d.language})`)
 console.log(

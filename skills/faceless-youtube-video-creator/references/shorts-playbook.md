@@ -76,7 +76,7 @@ A cover is the Short's thumbnail: what sells the click on the Shorts shelf, in a
 - `longVideo`: the long video's URL; set it as the Short's **Related video** in Studio (no API sets it);
 - `cover`: `cover/cover.png`, the approved cover (below);
 - `tags`, `language`, `containsSyntheticMedia`, `madeForKids` as for the long video;
-- `instagram.caption` and `tiktok.caption`: the captions for the same MP4 on Instagram Reels and TikTok (below);
+- `instagram.caption` and `tiktok.caption`: the captions for the same MP4 on Instagram Reels and TikTok, and `instagram.aiLabel` / `tiktok.aiLabel`: whether to turn on that app's AI label (below);
 - no chapters, no A/B thumbnails.
 
 `youtube.md` is the readable version, with an **Instagram Reels** and a **TikTok** section under the YouTube one, so each caption can be copied as it is.
@@ -93,7 +93,7 @@ Both captions:
 - **Search words in the text.** People search both apps the way they search Google, so put the long video's main search phrase (from the brief or the topic sheet row) in the first two lines, in plain words.
 - **No links, no `#Shorts`.** Send people to the full video by naming the YouTube channel (`@handle` from `channel/channel.md`): "Full video on YouTube: @handle".
 - **3–5 topic hashtags**: one broad (`#ai`, `#inteligenciaartificial`) and the rest niche (`#promptengineering`, `#chatgpttips`), in the Short's language (a Spanish Short can add one English hashtag). No `#fyp`, `#foryou`, `#viral` or `#parati`: they say nothing about the topic.
-- **The AI label**: when `containsSyntheticMedia` is true (an AI voice, generated pictures), turn on Instagram's "AI info" and TikTok's "AI-generated content" when you upload.
+- **The AI label** (`instagram.aiLabel`, `tiktok.aiLabel`): **`true` whenever the Short has an AI voiceover**, which is every Short this skill renders (all but `"format": "presenter"`). The apps' rules aren't YouTube's: Meta requires its "AI info" label on realistic-sounding AI audio (its own example is a Reel narrated by an AI voice), and TikTok asks for "AI-generated content" on realistic AI audio or video and can add its own label, which can't be removed. YouTube's `containsSyntheticMedia` stays its own answer (an AI voice reading slides doesn't need it), so `true` on Reels and TikTok doesn't change it. `youtube-meta.mjs` warns when the field is missing and fails `instagram.aiLabel: false` on a Short with an AI voice. The rules change: check each app's label options when you upload.
 
 **Instagram Reels** (`instagram.caption`): 2–4 short lines, ≤ 2,200 characters, **at most 5 hashtags** (Instagram's limit). Ask for a save or a send ("Save this for your next prompt", "Send this to someone who still…"): Reels weighs saves and sends more than likes.
 
@@ -101,11 +101,13 @@ Both captions:
 
 ```json
 "instagram": {
-  "caption": "Why does AI give you a different answer every time?\n\nIt isn't broken: it picks every word with a roll of the dice, and you can turn that down.\n\nSave this for your next prompt. Full video on YouTube: @handle\n\n#ai #chatgpt #promptengineering #aitips #llm"
+  "caption": "Why does AI give you a different answer every time?\n\nIt isn't broken: it picks every word with a roll of the dice, and you can turn that down.\n\nSave this for your next prompt. Full video on YouTube: @handle\n\n#ai #chatgpt #promptengineering #aitips #llm",
+  "aiLabel": true
 },
 "tiktok": {
-  "caption": "Why ChatGPT gives you a different answer every time, and the one setting that fixes it.\n\nDid you get the same answer twice? 👇\n\n#ai #chatgpt #promptengineering #aitips"
+  "caption": "Why ChatGPT gives you a different answer every time, and the one setting that fixes it.\n\nDid you get the same answer twice? 👇\n\n#ai #chatgpt #promptengineering #aitips",
+  "aiLabel": true
 }
 ```
 
-`youtube-meta.mjs` checks both: length, the hashtag count (more than 5 on Reels fails), a first line past 125 characters, links, `#Shorts` and empty hashtags.
+`youtube-meta.mjs` checks both: length, the hashtag count (more than 5 on Reels fails), a first line past 125 characters, links, `#Shorts`, empty hashtags and the AI label.
